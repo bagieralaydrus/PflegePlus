@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login</title>
+  <style>
+    /* ========== Global Reset & Body Styling ========== */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      height: 100%;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      overflow: hidden;
+    }
+
+    /* Body as flex container to center the login box */
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0d1b2a; /* fallback color if canvas isn't available */
+    }
+
+    /* ========== Particle Canvas ========== */
+    #bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+    }
+
+    /* ========== Login Card ========== */
+    .login-container {
+      background: rgba(255, 255, 255, 0.85);
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      max-width: 400px;
+      width: 90%;
+    }
+
+    .login-container h1 {
+      text-align: center;
+      color: #2c3e50;
+      margin-bottom: 1.5rem;
+      font-size: 2rem;
+    }
+
+    .login-container label {
+      display: block;
+      font-size: 0.9rem;
+      color: #34495e;
+      margin-bottom: 0.3rem;
+    }
+
+    .login-container input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+
+    .login-container input:focus {
+      outline: none;
+      border-color: #2d7ff9;
+      box-shadow: 0 0 0 2px rgba(45, 127, 249, 0.2);
+    }
+
+    .login-container button {
+      width: 100%;
+      padding: 0.75rem;
+      background: #2d7ff9;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .login-container button:hover {
+      background: #246ac2;
+    }
+
+    /* ========== Responsive Adjustments ========== */
+    @media (max-width: 480px) {
+      .login-container {
+        padding: 1.5rem;
+      }
+      .login-container h1 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- PARTICLE BACKGROUND CANVAS -->
+  <canvas id="bg"></canvas>
+
+  <div class="login-container">
+    <h1>Login</h1>
+    <form id="loginForm">
+      <label for="username">Benutzername</label>
+      <input
+        type="text"
+        id="username"
+        name="username"
+        placeholder="Geben Sie Ihren Benutzernamen ein"
+        required
+      />
+
+      <label for="birthdate">Geburtsdatum</label>
+      <input
+        type="date"
+        id="birthdate"
+        name="birthdate"
+        placeholder="tt.mm.jjjj"
+        required
+      />
+
+      <button type="submit">Einloggen</button>
+    </form>
+  </div>
+
+  <script>
+    // ——— Particle Background ———
+    const canvas = document.getElementById('bg');
+    const ctx = canvas.getContext('2d');
+    let particlesArray = [];
+    const numberOfParticles = 120;
+
+    // Set canvas width and height
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Particle CLASS
+    class Particle {
+      constructor() {
+        this.reset();
+      }
+      reset() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size = Math.random() * 3 + 1;
+        this.speedX = (Math.random() - 0.5) * 0.7;
+        this.speedY = (Math.random() - 0.5) * 0.7;
+        this.alpha = Math.random() * 0.5 + 0.3;
+      }
+      update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+        if (
+          this.x < 0 ||
+          this.x > canvas.width ||
+          this.y < 0 ||
+          this.y > canvas.height
+        ) {
+          this.reset();
+        }
+      }
+      draw() {
+        ctx.fillStyle = `rgba(255, 255, 255, ${this.alpha})`;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Initialize particles
+    function initParticles() {
+      particlesArray = [];
+      for (let i = 0; i < numberOfParticles; i++) {
+        particlesArray.push(new Particle());
+      }
+    }
+    initParticles();
+
+    // Animate particles
+    function animateParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particlesArray.forEach((p) => {
+        p.update();
+        p.draw();
+      });
+      requestAnimationFrame(animateParticles);
+    }
+    animateParticles();
+
+    // ——— Form Section ———
+    document.getElementById('loginForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const user = document.getElementById('username').value.trim();
+      const date = document.getElementById('birthdate').value;
+      if (!user || !date) {
+        alert('Bitte füllen Sie alle Felder aus.');
+        return;
+      }
+      // TODO: API calls can be done here later
+      alert(`Willkommen, ${user}!`);
+    });
+  </script>
+</body>
+</html>
