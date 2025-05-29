@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- PARTICLE BACKGROUND CANVAS -->
+  <canvas id="bg"></canvas>
+
+  <div class="login-container">
+    <h1>Login</h1>
+    <form id="loginForm">
+      <label for="username">Benutzername</label>
+      <input
+        type="text"
+        id="username"
+        name="username"
+        placeholder="Geben Sie Ihren Benutzernamen ein"
+        required
+      >
+
+      <label for="birthdate">Geburtsdatum</label>
+      <input
+        type="date"
+        id="birthdate"
+        name="birthdate"
+        placeholder="tt.mm.jjjj"
+        required
+      >
+
+      <button type="submit">Einloggen</button>
+    </form>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
+
