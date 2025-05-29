@@ -1,4 +1,3 @@
-
 // ——— Particle Background ———
 const canvas = document.getElementById('bg');
 const ctx = canvas.getContext('2d');
@@ -61,15 +60,62 @@ function animateParticles() {
 }
 animateParticles();
 
-// ——— Form Section ———
-document.getElementById('loginForm').addEventListener('submit', function(e) {
+// ——— Form Section with Database Integration ———
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
   e.preventDefault();
+
   const user = document.getElementById('username').value.trim();
   const date = document.getElementById('birthdate').value;
+
   if (!user || !date) {
     alert('Bitte füllen Sie alle Felder aus.');
     return;
   }
-  // TODO: Hier können wir später richtige API-Anrufen erledigen.
-  alert(`Willkommen, ${user}!`);
+
+  // Show loading state
+  const submitButton = document.querySelector('button[type="submit"]');
+  const originalText = submitButton.textContent;
+  submitButton.textContent = 'Wird geladen...';
+  submitButton.disabled = true;
+
+  try {
+    const response = await fetch('/api/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        username: user,
+        birthdate: date
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      // Store user info for potential use
+      sessionStorage.setItem('currentUser', JSON.stringify(data.user));
+
+      // Show success message
+      alert(data.message + `\nSie sind als ${data.user.type} angemeldet.`);
+
+      // Redirect based on user type
+      if (data.user.type === 'mitarbeiter') {
+        // Redirect to employee dashboard
+        window.location.href = '/employee-dashboard.html';
+      } else if (data.user.type === 'patient') {
+        // Redirect to patient dashboard
+        window.location.href = '/patient-dashboard.html';
+      }
+    } else {
+      alert(data.message || 'Anmeldung fehlgeschlagen');
+    }
+  } catch (error) {
+    console.error('Login error:', error);
+    alert('Verbindungsfehler. Bitte versuchen Sie es später erneut.');
+  } finally {
+    // Reset button state
+    submitButton.textContent = originalText;
+    submitButton.disabled = false;
+  }
 });
