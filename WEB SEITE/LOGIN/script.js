@@ -101,14 +101,12 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
 
       // Redirect based on user type
       if (data.user.type === 'mitarbeiter') {
-        // Redirect to employee dashboard
-        window.location.href = '/employee-dashboard.html';
+        // Redirect to Pflegekraft dashboard
+        window.location.href = '/pflegekraft-dashboard';
       } else if (data.user.type === 'patient') {
-        // Redirect to patient dashboard
-        window.location.href = '/patient-dashboard.html';
+        // Redirect to patient dashboard (placeholder for now)
+        window.location.href = '/patient-dashboard';
       }
-    } else {
-      alert(data.message || 'Anmeldung fehlgeschlagen');
     }
   } catch (error) {
     console.error('Login error:', error);

@@ -10,6 +10,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static('WEB SEITE/LOGIN')); // Serve your static files
+app.use(express.static('WEB SEITE/Pflegekraft', { index: false })); // Don't auto-serve index.html
 
 // PostgreSQL connection
 const pool = new Pool({
@@ -102,6 +103,15 @@ app.post('/api/login', async (req, res) => {
 // Serve the main HTML file
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'WEB SEITE', 'LOGIN', 'index.html'));
+});
+
+// Add this new route for Pflegekraft dashboard
+app.get('/pflegekraft-dashboard', (req, res) => {
+    res.sendFile(path.join(__dirname, 'WEB SEITE', 'Pflegekraft', 'index.html'));
+});
+
+app.get('/patient-dashboard', (req, res) => {
+    res.send('<h1>Patient Dashboard - Coming Soon!</h1>');
 });
 
 // Start server
