@@ -10,7 +10,8 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static('WEB SEITE/LOGIN')); // Serve your static files
-app.use(express.static('WEB SEITE/Pflegekraft', { index: false })); // Don't auto-serve index.html
+app.use('/pflegekraft', express.static('WEB SEITE/Pflegekraft')); // Serve Pflegekraft files
+
 
 // PostgreSQL connection
 const pool = new Pool({
