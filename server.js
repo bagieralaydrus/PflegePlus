@@ -4,7 +4,7 @@ const path = require('path');
 const cors = require('cors');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors());
@@ -107,12 +107,12 @@ app.get('/', (req, res) => {
 });
 
 // Add this new route for Pflegekraft dashboard
-app.get('/pflegekraft-dashboard', (req, res) => {
+app.get('/pflegekraft', (req, res) => {
     res.sendFile(path.join(__dirname, 'WEB SEITE', 'Pflegekraft', 'index.html'));
 });
 
-app.get('/patient-dashboard', (req, res) => {
-    res.send('<h1>Patient Dashboard - Coming Soon!</h1>');
+app.get('/patient', (req, res) => {
+    res.sendFile(path.join(__dirname, 'WEB SEITE', 'Patient', 'dashboard_patient.html'));
 });
 
 // Start server
@@ -127,3 +127,9 @@ process.on('SIGINT', () => {
         process.exit(0);
     });
 });
+
+// Add this line to see what files Express is trying to serve
+app.use('/pflegekraft', (req, res, next) => {
+    console.log('Trying to serve:', req.url);
+    next();
+}, express.static('WEB SEITE/Pflegekraft'));

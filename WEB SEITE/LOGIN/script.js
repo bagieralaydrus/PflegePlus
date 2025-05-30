@@ -102,10 +102,10 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
       // Redirect based on user type
       if (data.user.type === 'mitarbeiter') {
         // Redirect to Pflegekraft dashboard
-        window.location.href = '/pflegekraft-dashboard';
+        window.location.href = '/pflegekraft/';
       } else if (data.user.type === 'patient') {
         // Redirect to patient dashboard (placeholder for now)
-        window.location.href = '/patient-dashboard';
+        window.location.href = '/patient/';
       }
     }
   } catch (error) {
