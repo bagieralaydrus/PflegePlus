@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard – PflegeVision</title>
+  <link rel="stylesheet" href="dashboard_patient.css">
+</head>
+<body>
+  <!-- PARTICLE BACKGROUND CANVAS -->
+  <canvas id="bg"></canvas>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-container">
+      <div class="logo">PflegeVision</div>
+      <nav class="nav">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="">Information ändern</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+    <section class="dashboard-header">
+      <h2>Willkommen zurück, Patienten <span id="username">Lisa</span>!</h2>
+      <div class="cards">
+        <div class="card">
+          <h3>Pfleger</h3>
+          <p id="">Hans Peter</p>
+        </div>
+        
+      </div>
+    </section>
+
+    <section class="table-section">
+      <h3>Heutige Aktivität</h3>
+      <div class="table-wrapper">
+        <table id="assignmentsTable">
+          <thead>
+            <tr>
+              <th>Aufgabe</th>
+              <th>Zeit</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- JS füllt hier die Zeilen -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>&copy; 2025 PflegeVision. All rights reserved.</p>
+  </footer>
+
+  <script src="dashboard_patient.js"></script>
+</body>
+</html>
