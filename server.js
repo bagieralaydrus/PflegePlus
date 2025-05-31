@@ -2,9 +2,11 @@ const express = require('express');
 const { Pool } = require('pg');
 const path = require('path');
 const cors = require('cors');
+const AssignmentAlgorithm = require('./assignment-algorithm');
+const algorithm = new AssignmentAlgorithm();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
@@ -115,6 +117,74 @@ app.get('/patient', (req, res) => {
     res.sendFile(path.join(__dirname, 'WEB SEITE', 'Patient', 'dashboard_patient.html'));
 });
 
+// Add this line to serve all Patient folder files
+app.use('/patient', express.static('WEB SEITE/Patient'));
+app.post('/api/assign-random', async (req, res) => {
+    try {
+        console.log('Starte Random-Assign-Algorithmus...');
+
+        // Alte Einträge löschen (nur für Tests, vorsichtig im echten Einsatz!)
+        await pool.query('DELETE FROM mitarbeiter_patienten');
+        console.log('Alte Zuweisungen gelöscht.');
+
+        // Alle Mitarbeiter holen
+        const mitarbeiterList = (await pool.query('SELECT id FROM mitarbeiter')).rows.map(row => ({
+            id: row.id,
+            assignedCount: 0
+        }));
+        console.log(`Gefundene Mitarbeiter: ${mitarbeiterList.length}`);
+
+        // Alle Patienten random holen
+        const patienten = (await pool.query('SELECT id FROM patienten ORDER BY RANDOM()')).rows;
+        console.log(`Gefundene Patienten: ${patienten.length}`);
+
+        if (mitarbeiterList.length === 0 || patienten.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Keine Mitarbeiter oder Patienten vorhanden.'
+            });
+        }
+
+        let mitarbeiterIndex = 0;
+
+        for (const patient of patienten) {
+            let assigned = false;
+            let attempts = 0;
+
+            while (!assigned && attempts < mitarbeiterList.length) {
+                const currentMitarbeiter = mitarbeiterList[mitarbeiterIndex];
+
+                if (currentMitarbeiter.assignedCount < 24) {
+                    try {
+                        await pool.query(
+                            'INSERT INTO mitarbeiter_patienten (mitarbeiter_id, patienten_id) VALUES ($1, $2)',
+                            [currentMitarbeiter.id, patient.id]
+                        );
+                        console.log(`✅ Patient ${patient.id} zu Mitarbeiter ${currentMitarbeiter.id} zugewiesen.`);
+                        currentMitarbeiter.assignedCount++;
+                        assigned = true;
+                    } catch (insertError) {
+                        console.error(`❌ Insert-Fehler bei Patient ${patient.id}:`, insertError.detail || insertError.message);
+                    }
+                }
+
+                mitarbeiterIndex = (mitarbeiterIndex + 1) % mitarbeiterList.length;
+                attempts++;
+            }
+
+            if (!assigned) {
+                console.warn(`⚠ Kein freier Mitarbeiter für Patient ${patient.id} gefunden.`);
+            }
+        }
+
+        res.json({ success: true, message: 'Random-Patienten-Zuweisung abgeschlossen!' });
+    } catch (error) {
+        console.error('💥 Fehler im Zuweisungsprozess:', error);
+        res.status(500).json({ success: false, message: 'Fehler bei der Random-Patienten-Zuweisung' });
+    }
+});
+
+
 // Start server
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
@@ -133,3 +203,27 @@ app.use('/pflegekraft', (req, res, next) => {
     console.log('Trying to serve:', req.url);
     next();
 }, express.static('WEB SEITE/Pflegekraft'));
+
+// Get assignment dashboard
+app.get('/api/assignments', async (req, res) => {
+    try {
+        const stats = await algorithm.getStatistics();
+        res.json({ success: true, statistics: stats });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Assign a patient
+app.post('/api/assign-patient', async (req, res) => {
+    const { patientId } = req.body;
+    const result = await algorithm.assignPatient(patientId);
+    res.json(result);
+});
+
+// Transfer a patient
+app.post('/api/transfer-patient', async (req, res) => {
+    const { patientId, reason } = req.body;
+    const result = await algorithm.transferPatient(patientId, reason);
+    res.json(result);
+});
