@@ -16,12 +16,22 @@ app.use('/pflegekraft', express.static('WEB SEITE/Pflegekraft')); // Serve Pfleg
 
 
 // PostgreSQL connection
+// Replace your existing PostgreSQL connection with this:
+
 const pool = new Pool({
-    user: 'postgres',     // Replace with your PostgreSQL username
-    host: 'localhost',         // Replace with your host
-    database: 'pflegeplus', // Replace with your database name
-    password: 'bagier002', // Replace with your password
-    port: 5432,               // Default PostgreSQL port
+    user: 'postgres',
+    host: 'localhost',
+    database: 'pflegeplus',
+    password: 'bagier002',
+    port: 5432,
+    // Add these options for proper UTF-8 handling
+    client_encoding: 'UTF8',
+    application_name: 'pflegevision-app'
+});
+
+// Also add this to ensure UTF-8 encoding for new connections
+pool.on('connect', (client) => {
+    client.query('SET client_encoding TO UTF8');
 });
 
 // Test database connection
@@ -332,20 +342,31 @@ app.get('/api/patients', async (req, res) => {
     }
 });
 
-// Create new assignment
 app.post('/api/assignments', async (req, res) => {
-    const { patientId, aufgabe, zeit, status } = req.body;
+    const { mitarbeiterId, patientId, aufgabe, zeit, status } = req.body;
 
     try {
-        // For now, we'll create a simple assignments table entry
-        // You might need to create an assignments table if it doesn't exist
-        const query = `
-            INSERT INTO assignments (patient_id, aufgabe, zeit, status, created_at)
-            VALUES ($1, $2, $3, $4, NOW())
+        // Create assignments table if it doesn't exist
+        const createTableQuery = `
+            CREATE TABLE IF NOT EXISTS assignments (
+                                                       id SERIAL PRIMARY KEY,
+                                                       mitarbeiter_id INTEGER REFERENCES mitarbeiter(id),
+                patient_id INTEGER REFERENCES patienten(id),
+                aufgabe TEXT NOT NULL,
+                zeit VARCHAR(5) NOT NULL,
+                status VARCHAR(20) NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+                )
+        `;
+        await pool.query(createTableQuery);
+
+        const insertQuery = `
+            INSERT INTO assignments (mitarbeiter_id, patient_id, aufgabe, zeit, status, created_at)
+            VALUES ($1, $2, $3, $4, $5, NOW())
             RETURNING *
         `;
 
-        const result = await pool.query(query, [patientId, aufgabe, zeit, status]);
+        const result = await pool.query(insertQuery, [mitarbeiterId, patientId, aufgabe, zeit, status]);
 
         res.json({
             success: true,
@@ -356,6 +377,34 @@ app.post('/api/assignments', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error creating assignment'
+        });
+    }
+});
+// Add this new endpoint to your server.js file (after the existing /api/patients endpoint)
+
+// Get ASSIGNED patients list for a specific Mitarbeiter
+app.get('/api/patients/assigned/:mitarbeiterId', async (req, res) => {
+    const { mitarbeiterId } = req.params;
+
+    try {
+        const query = `
+            SELECT p.id, p.vorname, p.nachname 
+            FROM patient_zuweisung pz
+            JOIN patienten p ON pz.patient_id = p.id
+            WHERE pz.mitarbeiter_id = $1
+            ORDER BY p.nachname, p.vorname
+        `;
+        const result = await pool.query(query, [mitarbeiterId]);
+
+        res.json({
+            success: true,
+            patients: result.rows
+        });
+    } catch (error) {
+        console.error('Assigned patients API error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error loading assigned patients'
         });
     }
 });
