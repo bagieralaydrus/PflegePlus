@@ -241,6 +241,9 @@ app.post('/api/transfer-patient', async (req, res) => {
 // Add these new endpoints to your existing server.js file
 
 // Dashboard endpoint - gets data for logged-in Mitarbeiter
+// Add this updated section to your server.js file
+
+// Dashboard endpoint - gets data for logged-in Mitarbeiter
 app.get('/api/dashboard/:mitarbeiterId', async (req, res) => {
     const { mitarbeiterId } = req.params;
 
@@ -264,53 +267,52 @@ app.get('/api/dashboard/:mitarbeiterId', async (req, res) => {
 
         // Get assigned patients count
         const patientsCountQuery = `
-            SELECT COUNT(*) as patient_count
-            FROM patient_zuweisung mp
-            WHERE mp.mitarbeiter_id = $1
+            SELECT COUNT(DISTINCT patient_id) as patient_count
+            FROM patient_zuweisung 
+            WHERE mitarbeiter_id = $1
         `;
         const patientsCountResult = await pool.query(patientsCountQuery, [mitarbeiterId]);
         const patientCount = patientsCountResult.rows[0].patient_count;
 
-        // Get today's assignments (you can expand this based on your assignments table structure)
+        // Get today's completed assignments count
+        const completedTodayQuery = `
+            SELECT COUNT(*) as completed_count
+            FROM assignments a
+            WHERE a.mitarbeiter_id = $1 
+            AND a.status = 'abgeschlossen'
+            AND DATE(a.created_at) = CURRENT_DATE
+        `;
+        const completedTodayResult = await pool.query(completedTodayQuery, [mitarbeiterId]);
+        const completedToday = completedTodayResult.rows[0].completed_count || 0;
+
+        // Get today's assignments with real data
         const todaysAssignmentsQuery = `
             SELECT 
                 p.vorname || ' ' || p.nachname as patient_name,
-                'Allgemeine Pflege' as aufgabe,
-                '08:00' as zeit,
-                'Ausstehend' as status
-            FROM patient_zuweisung mp
-            JOIN patienten p ON mp.patient_id = p.id
-            WHERE mp.mitarbeiter_id = $1
-            LIMIT 10
+                a.aufgabe,
+                a.zeit,
+                a.status,
+                a.created_at
+            FROM assignments a
+            JOIN patienten p ON a.patient_id = p.id
+            WHERE a.mitarbeiter_id = $1
+            AND DATE(a.created_at) = CURRENT_DATE
+            ORDER BY a.zeit, a.created_at DESC
+            LIMIT 20
         `;
         const assignmentsResult = await pool.query(todaysAssignmentsQuery, [mitarbeiterId]);
-
-        // Get assigned patients details
-        const assignedPatientsQuery = `
-            SELECT 
-                p.id,
-                p.vorname,
-                p.nachname,
-                p.geburtsdatum
-            FROM patient_zuweisung mp
-            JOIN patienten p ON mp.patient_id = p.id
-            WHERE mp.mitarbeiter_id = $1
-            ORDER BY p.nachname, p.vorname
-        `;
-        const assignedPatientsResult = await pool.query(assignedPatientsQuery, [mitarbeiterId]);
 
         res.json({
             success: true,
             username: mitarbeiter.vorname || mitarbeiter.benutzername,
             activePatients: parseInt(patientCount),
-            completedAssignments: Math.floor(Math.random() * 5), // Dummy data for now
+            completedAssignments: parseInt(completedToday),
             todaysAssignments: assignmentsResult.rows.map(row => ({
                 patient: row.patient_name,
                 aufgabe: row.aufgabe,
-                zeit: row.zeit,
-                status: row.status
-            })),
-            assignedPatients: assignedPatientsResult.rows
+                zeit: row.zeit + ':00', // Add minutes if needed
+                status: row.status === 'abgeschlossen' ? 'Abgeschlossen' : 'Ausstehend'
+            }))
         });
 
     } catch (error) {
@@ -318,6 +320,91 @@ app.get('/api/dashboard/:mitarbeiterId', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Server error loading dashboard'
+        });
+    }
+});
+
+// Updated assignments endpoint to work with your existing database structure
+app.post('/api/assignments', async (req, res) => {
+    const { mitarbeiterId, patientId, aufgabe, zeit, status } = req.body;
+
+    try {
+        // First, make sure the assignments table exists and has the right structure
+        const createTableQuery = `
+            CREATE TABLE IF NOT EXISTS assignments (
+                id SERIAL PRIMARY KEY,
+                mitarbeiter_id INTEGER REFERENCES mitarbeiter(id),
+                patient_id INTEGER REFERENCES patienten(id),
+                aufgabe TEXT NOT NULL,
+                zeit VARCHAR(5) NOT NULL,
+                status VARCHAR(20) NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        `;
+        await pool.query(createTableQuery);
+
+        // Insert the new assignment
+        const insertQuery = `
+            INSERT INTO assignments (mitarbeiter_id, patient_id, aufgabe, zeit, status, created_at)
+            VALUES ($1, $2, $3, $4, $5, NOW())
+            RETURNING *
+        `;
+
+        const result = await pool.query(insertQuery, [mitarbeiterId, patientId, aufgabe, zeit, status]);
+
+        // If the status is 'abgeschlossen', also update the patient_zuweisung table status
+        if (status === 'abgeschlossen') {
+            const updateZuweisungQuery = `
+                UPDATE patient_zuweisung 
+                SET status = 'abgeschlossen', 
+                    datum = CURRENT_DATE
+                WHERE mitarbeiter_id = $1 AND patient_id = $2
+            `;
+            await pool.query(updateZuweisungQuery, [mitarbeiterId, patientId]);
+        }
+
+        res.json({
+            success: true,
+            message: 'Assignment successfully saved',
+            assignment: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Assignment creation error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error creating assignment: ' + error.message
+        });
+    }
+});
+
+// Optional: Add an endpoint to get assignment history
+app.get('/api/assignments/history/:mitarbeiterId', async (req, res) => {
+    const { mitarbeiterId } = req.params;
+    const { days = 7 } = req.query; // Default to last 7 days
+
+    try {
+        const historyQuery = `
+            SELECT 
+                a.*,
+                p.vorname || ' ' || p.nachname as patient_name
+            FROM assignments a
+            JOIN patienten p ON a.patient_id = p.id
+            WHERE a.mitarbeiter_id = $1
+            AND a.created_at >= NOW() - INTERVAL '${days} days'
+            ORDER BY a.created_at DESC
+        `;
+
+        const result = await pool.query(historyQuery, [mitarbeiterId]);
+
+        res.json({
+            success: true,
+            assignments: result.rows
+        });
+    } catch (error) {
+        console.error('Assignment history error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error loading assignment history'
         });
     }
 });

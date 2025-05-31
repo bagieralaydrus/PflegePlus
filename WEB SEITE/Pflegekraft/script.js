@@ -18,25 +18,32 @@ document.addEventListener('DOMContentLoaded', () => {
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          data.patients.forEach(p => {
+          if (data.patients.length === 0) {
             const opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = `${p.vorname} ${p.nachname}`;
+            opt.value = '';
+            opt.textContent = 'Keine Patienten zugewiesen';
+            opt.disabled = true;
             patientSelect.appendChild(opt);
-          });
+          } else {
+            data.patients.forEach(p => {
+              const opt = document.createElement('option');
+              opt.value = p.id;
+              opt.textContent = `${p.vorname} ${p.nachname}`;
+              patientSelect.appendChild(opt);
+            });
+          }
         } else {
           throw new Error(data.message || 'Failed to load patients');
         }
       })
       .catch(error => {
         console.error('Error loading patients:', error);
-        // Fallback for demo purposes
-        ['Müller', 'Schmidt', 'Meier'].forEach((name, i) => {
-          const opt = document.createElement('option');
-          opt.value = `demo-${i}`;
-          opt.textContent = name;
-          patientSelect.appendChild(opt);
-        });
+        // Show error in dropdown
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'Fehler beim Laden der Patienten';
+        opt.disabled = true;
+        patientSelect.appendChild(opt);
       });
 
   // 2) Fill hours 0–23
@@ -49,10 +56,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 3) Form submission
+  // Replace the form submission part in script.js with this improved version:
+
   form.addEventListener('submit', e => {
     e.preventDefault();
     const payload = {
-      mitarbeiterId: mitarbeiterId, // Add mitarbeiter ID to the payload
+      mitarbeiterId: mitarbeiterId,
       patientId: patientSelect.value,
       aufgabe:   form.task.value.trim(),
       zeit:      form.time.value,
@@ -65,20 +74,29 @@ document.addEventListener('DOMContentLoaded', () => {
       body:    JSON.stringify(payload)
     })
         .then(res => {
-          if (!res.ok) throw new Error('Network response was not ok');
+          console.log('Response status:', res.status);
+          console.log('Response headers:', res.headers);
+
+          if (!res.ok) {
+            return res.text().then(text => {
+              console.error('Error response body:', text);
+              throw new Error(`Server error: ${res.status} - ${text}`);
+            });
+          }
           return res.json();
         })
-        .then(() => {
+        .then(data => {
+          console.log('Success response:', data);
           alert('Aufgabe erfolgreich gespeichert!');
           form.reset();
         })
         .catch(err => {
-          console.error(err);
-          alert('Fehler beim Speichern. Bitte versuche es erneut.');
+          console.error('Full error details:', err);
+          alert(`Detaillierter Fehler: ${err.message}`);
         });
   });
 
-  // ——— Particle Background ———
+  // ——— Particle Background (unchanged) ———
   const canvas = document.getElementById('bg');
   const ctx = canvas.getContext('2d');
   let particles = [];
