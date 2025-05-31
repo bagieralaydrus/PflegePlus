@@ -238,20 +238,90 @@ app.post('/api/transfer-patient', async (req, res) => {
     res.json(result);
 });
 
+// Update assignment status (mark as completed)
+app.put('/api/assignments/:assignmentId/status', async (req, res) => {
+    const { assignmentId } = req.params;
+    const { status } = req.body;
+
+    try {
+        const updateQuery = `
+            UPDATE assignments 
+            SET status = $1, updated_at = NOW()
+            WHERE id = $2
+            RETURNING *
+        `;
+
+        const result = await pool.query(updateQuery, [status, assignmentId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Assignment not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            assignment: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Status update error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error updating assignment status'
+        });
+    }
+});
+
+// Delete assignment
+app.delete('/api/assignments/:assignmentId', async (req, res) => {
+    const { assignmentId } = req.params;
+
+    try {
+        const deleteQuery = `
+            DELETE FROM assignments 
+            WHERE id = $1
+            RETURNING *
+        `;
+
+        const result = await pool.query(deleteQuery, [assignmentId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Assignment not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Assignment deleted successfully'
+        });
+    } catch (error) {
+        console.error('Delete assignment error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error deleting assignment'
+        });
+    }
+});
+
+
 // Add these new endpoints to your existing server.js file
 
 // Dashboard endpoint - gets data for logged-in Mitarbeiter
 // Add this updated section to your server.js file
 
 // Dashboard endpoint - gets data for logged-in Mitarbeiter
+// Updated dashboard endpoint to include actual assignments from the assignments table
 app.get('/api/dashboard/:mitarbeiterId', async (req, res) => {
     const { mitarbeiterId } = req.params;
 
     try {
         // Get Mitarbeiter info
         const mitarbeiterQuery = `
-            SELECT benutzername, vorname, nachname 
-            FROM mitarbeiter 
+            SELECT benutzername, vorname, nachname
+            FROM mitarbeiter
             WHERE id = $1
         `;
         const mitarbeiterResult = await pool.query(mitarbeiterQuery, [mitarbeiterId]);
@@ -267,51 +337,51 @@ app.get('/api/dashboard/:mitarbeiterId', async (req, res) => {
 
         // Get assigned patients count
         const patientsCountQuery = `
-            SELECT COUNT(DISTINCT patient_id) as patient_count
-            FROM patient_zuweisung 
-            WHERE mitarbeiter_id = $1
+            SELECT COUNT(*) as patient_count
+            FROM patient_zuweisung mp
+            WHERE mp.mitarbeiter_id = $1
         `;
         const patientsCountResult = await pool.query(patientsCountQuery, [mitarbeiterId]);
         const patientCount = patientsCountResult.rows[0].patient_count;
 
-        // Get today's completed assignments count
-        const completedTodayQuery = `
-            SELECT COUNT(*) as completed_count
-            FROM assignments a
-            WHERE a.mitarbeiter_id = $1 
-            AND a.status = 'abgeschlossen'
-            AND DATE(a.created_at) = CURRENT_DATE
-        `;
-        const completedTodayResult = await pool.query(completedTodayQuery, [mitarbeiterId]);
-        const completedToday = completedTodayResult.rows[0].completed_count || 0;
-
-        // Get today's assignments with real data
+        // Get today's assignments from the assignments table
         const todaysAssignmentsQuery = `
-            SELECT 
+            SELECT
+                a.id as assignment_id,
                 p.vorname || ' ' || p.nachname as patient_name,
                 a.aufgabe,
                 a.zeit,
-                a.status,
-                a.created_at
+                a.status
             FROM assignments a
-            JOIN patienten p ON a.patient_id = p.id
+                     JOIN patienten p ON a.patient_id = p.id
             WHERE a.mitarbeiter_id = $1
-            AND DATE(a.created_at) = CURRENT_DATE
-            ORDER BY a.zeit, a.created_at DESC
-            LIMIT 20
+              AND DATE(a.created_at) = CURRENT_DATE
+            ORDER BY a.zeit
         `;
         const assignmentsResult = await pool.query(todaysAssignmentsQuery, [mitarbeiterId]);
+
+        // Count completed assignments for today
+        const completedCountQuery = `
+            SELECT COUNT(*) as completed_count
+            FROM assignments
+            WHERE mitarbeiter_id = $1 
+            AND status = 'abgeschlossen'
+            AND DATE(created_at) = CURRENT_DATE
+        `;
+        const completedResult = await pool.query(completedCountQuery, [mitarbeiterId]);
+        const completedCount = completedResult.rows[0].completed_count;
 
         res.json({
             success: true,
             username: mitarbeiter.vorname || mitarbeiter.benutzername,
             activePatients: parseInt(patientCount),
-            completedAssignments: parseInt(completedToday),
+            completedAssignments: parseInt(completedCount),
             todaysAssignments: assignmentsResult.rows.map(row => ({
+                id: row.assignment_id,
                 patient: row.patient_name,
                 aufgabe: row.aufgabe,
-                zeit: row.zeit + ':00', // Add minutes if needed
-                status: row.status === 'abgeschlossen' ? 'Abgeschlossen' : 'Ausstehend'
+                zeit: row.zeit,
+                status: row.status
             }))
         });
 

@@ -14,7 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  // Function to load dashboard data
   function loadDashboardData() {
     fetch(`/api/dashboard/${mitarbeiterId}`)
         .then(res => {
@@ -33,40 +32,35 @@ document.addEventListener('DOMContentLoaded', () => {
             tableBody.innerHTML = '';
 
             // Add assignments to table
-            if (data.todaysAssignments && data.todaysAssignments.length > 0) {
-              data.todaysAssignments.forEach(a => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                  <td>${a.patient}</td>
-                  <td>${a.aufgabe}</td>
-                  <td>${a.zeit}</td>
-                  <td><span class="status ${a.status.toLowerCase()}">${a.status}</span></td>
-                `;
-                tableBody.appendChild(tr);
-              });
-            } else {
-              // Show message when no assignments for today
+            data.todaysAssignments.forEach(a => {
               const tr = document.createElement('tr');
               tr.innerHTML = `
-                <td colspan="4" style="text-align: center; color: #666; font-style: italic;">
-                  Keine Einsätze für heute vorhanden
+                <td>${a.patient}</td>
+                <td>${a.aufgabe}</td>
+                <td>${a.zeit}</td>
+                <td>
+                  <span class="status ${a.status.toLowerCase()}">${a.status}</span>
+                  <div class="task-actions">
+                    ${a.status.toLowerCase() === 'ausstehend' ?
+                  `<button class="btn-complete" onclick="completeTask(${a.id})">✓ Abschließen</button>` :
+                  ''
+              }
+                    <button class="btn-delete" onclick="deleteTask(${a.id})">🗑 Löschen</button>
+                  </div>
                 </td>
               `;
               tableBody.appendChild(tr);
-            }
+            });
           } else {
             throw new Error(data.message || 'Failed to load dashboard');
           }
         })
         .catch(error => {
           console.error('Dashboard loading error:', error);
-
-          // Fallback-Dummy data
           userEl.textContent      = currentUser.username || 'Unbekannt';
           activeEl.textContent    = '—';
           completedEl.textContent = '—';
 
-          // Show error message
           const tr = document.createElement('tr');
           tr.innerHTML = `
             <td colspan="4" style="text-align: center; color: #666;">
@@ -77,44 +71,56 @@ document.addEventListener('DOMContentLoaded', () => {
         });
   }
 
-  // Load dashboard data initially
+  // Function to complete a task
+  window.completeTask = function(assignmentId) {
+    if (confirm('Aufgabe als abgeschlossen markieren?')) {
+      fetch(`/api/assignments/${assignmentId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'abgeschlossen' })
+      })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              loadDashboardData(); // Reload dashboard
+              alert('Aufgabe erfolgreich abgeschlossen!');
+            } else {
+              alert('Fehler beim Abschließen der Aufgabe');
+            }
+          })
+          .catch(error => {
+            console.error('Complete task error:', error);
+            alert('Fehler beim Abschließen der Aufgabe');
+          });
+    }
+  };
+
+  // Function to delete a task
+  window.deleteTask = function(assignmentId) {
+    if (confirm('Aufgabe wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) {
+      fetch(`/api/assignments/${assignmentId}`, {
+        method: 'DELETE'
+      })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              loadDashboardData(); // Reload dashboard
+              alert('Aufgabe erfolgreich gelöscht!');
+            } else {
+              alert('Fehler beim Löschen der Aufgabe');
+            }
+          })
+          .catch(error => {
+            console.error('Delete task error:', error);
+            alert('Fehler beim Löschen der Aufgabe');
+          });
+    }
+  };
+
+  // Initial load
   loadDashboardData();
 
-  // Check if we just came from the assignment form (success message)
-  const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get('success') === 'assignment') {
-    // Show success message
-    const successDiv = document.createElement('div');
-    successDiv.style.cssText = `
-      position: fixed;
-      top: 80px;
-      right: 20px;
-      background: #28a745;
-      color: white;
-      padding: 15px 20px;
-      border-radius: 5px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-      z-index: 1000;
-      font-weight: bold;
-    `;
-    successDiv.textContent = 'Aufgabe erfolgreich gespeichert!';
-    document.body.appendChild(successDiv);
-
-    // Remove success message after 3 seconds
-    setTimeout(() => {
-      successDiv.remove();
-      // Clean URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }, 3000);
-
-    // Reload dashboard data to show the new assignment
-    setTimeout(loadDashboardData, 500);
-  }
-
-  // Auto-refresh dashboard every 30 seconds to show real-time updates
-  setInterval(loadDashboardData, 30000);
-
-  // 2) Particle-Hintergrund (unchanged)
+  // Particle background code (keep existing code)
   const canvas = document.getElementById('bg');
   const ctx    = canvas.getContext('2d');
   let particles = [];
