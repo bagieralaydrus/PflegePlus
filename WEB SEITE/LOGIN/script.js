@@ -61,6 +61,9 @@ function animateParticles() {
 animateParticles();
 
 // ——— Form Section with Database Integration ———
+// Update the login form section in your LOGIN/script.js file
+// Replace the existing form submission code with this:
+
 document.getElementById('loginForm').addEventListener('submit', async function(e) {
   e.preventDefault();
 
@@ -93,8 +96,12 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     const data = await response.json();
 
     if (data.success) {
-      // Store user info for potential use
-      sessionStorage.setItem('currentUser', JSON.stringify(data.user));
+      // Store complete user info including ID
+      sessionStorage.setItem('currentUser', JSON.stringify({
+        id: data.user.id,
+        username: data.user.username,
+        type: data.user.type
+      }));
 
       // Show success message
       alert(data.message + `\nSie sind als ${data.user.type} angemeldet.`);
@@ -102,11 +109,13 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
       // Redirect based on user type
       if (data.user.type === 'mitarbeiter') {
         // Redirect to Pflegekraft dashboard
-        window.location.href = '/pflegekraft/';
+        window.location.href = '/pflegekraft/dashboard.html';
       } else if (data.user.type === 'patient') {
-        // Redirect to patient dashboard (placeholder for now)
+        // Redirect to patient dashboard
         window.location.href = '/patient/';
       }
+    } else {
+      alert(data.message || 'Anmeldung fehlgeschlagen');
     }
   } catch (error) {
     console.error('Login error:', error);

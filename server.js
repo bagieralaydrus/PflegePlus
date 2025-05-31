@@ -2,7 +2,7 @@ const express = require('express');
 const { Pool } = require('pg');
 const path = require('path');
 const cors = require('cors');
-const AssignmentAlgorithm = require('./assignment-algorithm');
+const AssignmentAlgorithm = require('./zuweisung-algorithm');
 const algorithm = new AssignmentAlgorithm();
 
 const app = express();
@@ -124,7 +124,7 @@ app.post('/api/assign-random', async (req, res) => {
         console.log('Starte Random-Assign-Algorithmus...');
 
         // Alte Einträge löschen (nur für Tests, vorsichtig im echten Einsatz!)
-        await pool.query('DELETE FROM mitarbeiter_patienten');
+        await pool.query('DELETE FROM patient_zuweisung');
         console.log('Alte Zuweisungen gelöscht.');
 
         // Alle Mitarbeiter holen
@@ -157,7 +157,7 @@ app.post('/api/assign-random', async (req, res) => {
                 if (currentMitarbeiter.assignedCount < 24) {
                     try {
                         await pool.query(
-                            'INSERT INTO mitarbeiter_patienten (mitarbeiter_id, patienten_id) VALUES ($1, $2)',
+                            'INSERT INTO patient_zuweisung (mitarbeiter_id, patient_id) VALUES ($1, $2)',
                             [currentMitarbeiter.id, patient.id]
                         );
                         console.log(`✅ Patient ${patient.id} zu Mitarbeiter ${currentMitarbeiter.id} zugewiesen.`);
@@ -226,4 +226,136 @@ app.post('/api/transfer-patient', async (req, res) => {
     const { patientId, reason } = req.body;
     const result = await algorithm.transferPatient(patientId, reason);
     res.json(result);
+});
+
+// Add these new endpoints to your existing server.js file
+
+// Dashboard endpoint - gets data for logged-in Mitarbeiter
+app.get('/api/dashboard/:mitarbeiterId', async (req, res) => {
+    const { mitarbeiterId } = req.params;
+
+    try {
+        // Get Mitarbeiter info
+        const mitarbeiterQuery = `
+            SELECT benutzername, vorname, nachname 
+            FROM mitarbeiter 
+            WHERE id = $1
+        `;
+        const mitarbeiterResult = await pool.query(mitarbeiterQuery, [mitarbeiterId]);
+
+        if (mitarbeiterResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Mitarbeiter not found'
+            });
+        }
+
+        const mitarbeiter = mitarbeiterResult.rows[0];
+
+        // Get assigned patients count
+        const patientsCountQuery = `
+            SELECT COUNT(*) as patient_count
+            FROM patient_zuweisung mp
+            WHERE mp.mitarbeiter_id = $1
+        `;
+        const patientsCountResult = await pool.query(patientsCountQuery, [mitarbeiterId]);
+        const patientCount = patientsCountResult.rows[0].patient_count;
+
+        // Get today's assignments (you can expand this based on your assignments table structure)
+        const todaysAssignmentsQuery = `
+            SELECT 
+                p.vorname || ' ' || p.nachname as patient_name,
+                'Allgemeine Pflege' as aufgabe,
+                '08:00' as zeit,
+                'Ausstehend' as status
+            FROM patient_zuweisung mp
+            JOIN patienten p ON mp.patient_id = p.id
+            WHERE mp.mitarbeiter_id = $1
+            LIMIT 10
+        `;
+        const assignmentsResult = await pool.query(todaysAssignmentsQuery, [mitarbeiterId]);
+
+        // Get assigned patients details
+        const assignedPatientsQuery = `
+            SELECT 
+                p.id,
+                p.vorname,
+                p.nachname,
+                p.geburtsdatum
+            FROM patient_zuweisung mp
+            JOIN patienten p ON mp.patient_id = p.id
+            WHERE mp.mitarbeiter_id = $1
+            ORDER BY p.nachname, p.vorname
+        `;
+        const assignedPatientsResult = await pool.query(assignedPatientsQuery, [mitarbeiterId]);
+
+        res.json({
+            success: true,
+            username: mitarbeiter.vorname || mitarbeiter.benutzername,
+            activePatients: parseInt(patientCount),
+            completedAssignments: Math.floor(Math.random() * 5), // Dummy data for now
+            todaysAssignments: assignmentsResult.rows.map(row => ({
+                patient: row.patient_name,
+                aufgabe: row.aufgabe,
+                zeit: row.zeit,
+                status: row.status
+            })),
+            assignedPatients: assignedPatientsResult.rows
+        });
+
+    } catch (error) {
+        console.error('Dashboard API error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error loading dashboard'
+        });
+    }
+});
+
+// Get patients list for assignment form
+app.get('/api/patients', async (req, res) => {
+    try {
+        const query = `
+            SELECT id, vorname, nachname 
+            FROM patienten 
+            ORDER BY nachname, vorname
+        `;
+        const result = await pool.query(query);
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Patients API error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error loading patients'
+        });
+    }
+});
+
+// Create new assignment
+app.post('/api/assignments', async (req, res) => {
+    const { patientId, aufgabe, zeit, status } = req.body;
+
+    try {
+        // For now, we'll create a simple assignments table entry
+        // You might need to create an assignments table if it doesn't exist
+        const query = `
+            INSERT INTO assignments (patient_id, aufgabe, zeit, status, created_at)
+            VALUES ($1, $2, $3, $4, NOW())
+            RETURNING *
+        `;
+
+        const result = await pool.query(query, [patientId, aufgabe, zeit, status]);
+
+        res.json({
+            success: true,
+            assignment: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Assignment creation error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error creating assignment'
+        });
+    }
 });
