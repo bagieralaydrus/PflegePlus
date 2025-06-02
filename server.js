@@ -395,21 +395,24 @@ app.get('/api/dashboard/:mitarbeiterId', async (req, res) => {
 });
 
 // Updated assignments endpoint to work with your existing database structure
+// Replace the existing /api/assignments POST endpoint in your server.js with this fixed version:
+
 app.post('/api/assignments', async (req, res) => {
     const { mitarbeiterId, patientId, aufgabe, zeit, status } = req.body;
 
     try {
-        // First, make sure the assignments table exists and has the right structure
+        // Create assignments table if it doesn't exist
         const createTableQuery = `
             CREATE TABLE IF NOT EXISTS assignments (
-                id SERIAL PRIMARY KEY,
-                mitarbeiter_id INTEGER REFERENCES mitarbeiter(id),
+                                                       id SERIAL PRIMARY KEY,
+                                                       mitarbeiter_id INTEGER REFERENCES mitarbeiter(id),
                 patient_id INTEGER REFERENCES patienten(id),
                 aufgabe TEXT NOT NULL,
                 zeit VARCHAR(5) NOT NULL,
                 status VARCHAR(20) NOT NULL,
-                created_at TIMESTAMP DEFAULT NOW()
-            )
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+                )
         `;
         await pool.query(createTableQuery);
 
@@ -417,68 +420,32 @@ app.post('/api/assignments', async (req, res) => {
         const insertQuery = `
             INSERT INTO assignments (mitarbeiter_id, patient_id, aufgabe, zeit, status, created_at)
             VALUES ($1, $2, $3, $4, $5, NOW())
-            RETURNING *
+                RETURNING *
         `;
 
         const result = await pool.query(insertQuery, [mitarbeiterId, patientId, aufgabe, zeit, status]);
 
-        // If the status is 'abgeschlossen', also update the patient_zuweisung table status
-        if (status === 'abgeschlossen') {
-            const updateZuweisungQuery = `
-                UPDATE patient_zuweisung 
-                SET status = 'abgeschlossen', 
-                    datum = CURRENT_DATE
-                WHERE mitarbeiter_id = $1 AND patient_id = $2
-            `;
-            await pool.query(updateZuweisungQuery, [mitarbeiterId, patientId]);
-        }
+        // REMOVED THE PROBLEMATIC CODE - No longer trying to update patient_zuweisung table
+        // The patient_zuweisung table is only for permanent patient-to-pflegekraft assignments
+        // Daily assignments are handled separately in the assignments table
 
         res.json({
             success: true,
-            message: 'Assignment successfully saved',
+            message: 'Aufgabe erfolgreich gespeichert',
             assignment: result.rows[0]
         });
+
     } catch (error) {
         console.error('Assignment creation error:', error);
         res.status(500).json({
             success: false,
-            message: 'Error creating assignment: ' + error.message
+            message: 'Fehler beim Erstellen der Aufgabe: ' + error.message
         });
     }
 });
 
-// Optional: Add an endpoint to get assignment history
-app.get('/api/assignments/history/:mitarbeiterId', async (req, res) => {
-    const { mitarbeiterId } = req.params;
-    const { days = 7 } = req.query; // Default to last 7 days
-
-    try {
-        const historyQuery = `
-            SELECT 
-                a.*,
-                p.vorname || ' ' || p.nachname as patient_name
-            FROM assignments a
-            JOIN patienten p ON a.patient_id = p.id
-            WHERE a.mitarbeiter_id = $1
-            AND a.created_at >= NOW() - INTERVAL '${days} days'
-            ORDER BY a.created_at DESC
-        `;
-
-        const result = await pool.query(historyQuery, [mitarbeiterId]);
-
-        res.json({
-            success: true,
-            assignments: result.rows
-        });
-    } catch (error) {
-        console.error('Assignment history error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error loading assignment history'
-        });
-    }
-});
-
+// Also, let's make sure we remove the duplicate /api/assignments endpoint
+// Keep only this one and remove any other duplicate endpoints in your server.js
 // Get patients list for assignment form
 app.get('/api/patients', async (req, res) => {
     try {
@@ -564,4 +531,126 @@ app.get('/api/patients/assigned/:mitarbeiterId', async (req, res) => {
             message: 'Error loading assigned patients'
         });
     }
+});
+
+// Add these new endpoints to your existing server.js file
+
+// Patient Dashboard API - shows patient-specific data
+app.get('/api/patient/dashboard/:patientId', async (req, res) => {
+    const { patientId } = req.params;
+
+    try {
+        // Get patient info
+        const patientQuery = `
+            SELECT id, benutzername, vorname, nachname
+            FROM patienten
+            WHERE id = $1
+        `;
+        const patientResult = await pool.query(patientQuery, [patientId]);
+
+        if (patientResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Patient nicht gefunden'
+            });
+        }
+
+        const patient = patientResult.rows[0];
+
+        // Get assigned Pflegekraft info
+        const pflegekraftQuery = `
+            SELECT m.vorname, m.nachname, m.benutzername
+            FROM patient_zuweisung pz
+            JOIN mitarbeiter m ON pz.mitarbeiter_id = m.id
+            WHERE pz.patient_id = $1 AND pz.status = 'active'
+        `;
+        const pflegekraftResult = await pool.query(pflegekraftQuery, [patientId]);
+
+        let assignedPflegekraft = 'Nicht zugewiesen';
+        if (pflegekraftResult.rows.length > 0) {
+            const pf = pflegekraftResult.rows[0];
+            assignedPflegekraft = pf.vorname ? `${pf.vorname} ${pf.nachname}` : pf.benutzername;
+        }
+
+        // Get today's assignments for this patient
+        const todaysAssignmentsQuery = `
+            SELECT
+                a.id,
+                a.aufgabe,
+                a.zeit,
+                a.status,
+                a.created_at
+            FROM assignments a
+            WHERE a.patient_id = $1
+            AND DATE(a.created_at) = CURRENT_DATE
+            ORDER BY a.zeit
+        `;
+        const assignmentsResult = await pool.query(todaysAssignmentsQuery, [patientId]);
+
+        res.json({
+            success: true,
+            username: patient.vorname || patient.benutzername,
+            fullName: patient.vorname ? `${patient.vorname} ${patient.nachname}` : patient.benutzername,
+            caregiver: assignedPflegekraft,
+            todaysAssignments: assignmentsResult.rows.map(row => ({
+                id: row.id,
+                aufgabe: row.aufgabe,
+                zeit: row.zeit,
+                status: row.status === 'abgeschlossen' ? 'Abgeschlossen' : 'Ausstehend'
+            }))
+        });
+
+    } catch (error) {
+        console.error('Patient Dashboard API error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Serverfehler beim Laden des Dashboards'
+        });
+    }
+});
+
+// Get patient's assignment history (optional - for viewing past assignments)
+app.get('/api/patient/assignments/history/:patientId', async (req, res) => {
+    const { patientId } = req.params;
+    const { days = 7 } = req.query; // Default to last 7 days
+
+    try {
+        const historyQuery = `
+            SELECT 
+                a.aufgabe,
+                a.zeit,
+                a.status,
+                a.created_at,
+                m.vorname || ' ' || m.nachname as pflegekraft_name
+            FROM assignments a
+            JOIN mitarbeiter m ON a.mitarbeiter_id = m.id
+            WHERE a.patient_id = $1
+            AND a.created_at >= NOW() - INTERVAL '${days} days'
+            ORDER BY a.created_at DESC
+        `;
+
+        const result = await pool.query(historyQuery, [patientId]);
+
+        res.json({
+            success: true,
+            assignments: result.rows.map(row => ({
+                aufgabe: row.aufgabe,
+                zeit: row.zeit,
+                status: row.status === 'abgeschlossen' ? 'Abgeschlossen' : 'Ausstehend',
+                datum: row.created_at.toLocaleDateString('de-DE'),
+                pflegekraft: row.pflegekraft_name
+            }))
+        });
+    } catch (error) {
+        console.error('Patient assignment history error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler beim Laden der Aufgaben-Historie'
+        });
+    }
+});
+
+// Update the existing patient dashboard route to serve the HTML
+app.get('/patient/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'WEB SEITE', 'Patient', 'dashboard_patient.html'));
 });

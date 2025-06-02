@@ -7,56 +7,303 @@
   <link rel="stylesheet" href="dashboard_patient.css">
 </head>
 <body>
-  <!-- PARTICLE BACKGROUND CANVAS -->
-  <canvas id="bg"></canvas>
+<!-- PARTICLE BACKGROUND CANVAS -->
+<canvas id="bg"></canvas>
 
-  <!-- HEADER -->
-  <header class="header">
-    <div class="header-container">
-      <div class="logo">PflegeVision</div>
-      <nav class="nav">
-        <a href="dashboard_patient.html">Dashboard</a>
-        <a href="Information_aendern.html">Information ändern</a>
-      </nav>
+<!-- HEADER -->
+<header class="header">
+  <div class="header-container">
+    <div class="logo">PflegeVision</div>
+    <nav class="nav">
+      <a href="dashboard_patient.html">Dashboard</a>
+      <a href="Information_aendern.html">Information ändern</a>
+      <a href="#" onclick="logout()">Abmelden</a>
+    </nav>
+  </div>
+</header>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+  <section class="dashboard-header">
+    <h2>Willkommen zurück, <span id="username">Patient</span>!</h2>
+    <div class="cards">
+      <div class="card">
+        <h3>Ihr Pfleger</h3>
+        <p id="caregiver">Wird geladen...</p>
+      </div>
+      <div class="card">
+        <h3>Heutige Aufgaben</h3>
+        <p id="todayTaskCount">—</p>
+      </div>
     </div>
-  </header>
+  </section>
 
-  <!-- MAIN CONTENT -->
-  <main class="main">
-    <section class="dashboard-header">
-      <h2>Willkommen zurück, Patient <span id="username">Lisa</span>!</h2>
-      <div class="cards">
-        <div class="card">
-          <h3>Pfleger</h3>
-          <p id="caregiver">Hans Peter</p>
-        </div>
-      </div>
-    </section>
+  <section class="table-section">
+    <h3>Heutige Aktivitäten</h3>
+    <div class="table-wrapper">
+      <table id="assignmentsTable">
+        <thead>
+        <tr>
+          <th>Aufgabe</th>
+          <th>Zeit</th>
+          <th>Status</th>
+        </tr>
+        </thead>
+        <tbody>
+        <!-- JavaScript wird hier die Zeilen einfügen -->
+        <tr>
+          <td colspan="3" style="text-align: center; color: #666;">
+            Daten werden geladen...
+          </td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
 
-    <section class="table-section">
-      <h3>Heutige Aktivität</h3>
-      <div class="table-wrapper">
-        <table id="assignmentsTable">
-          <thead>
-            <tr>
-              <th>Aufgabe</th>
-              <th>Zeit</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <!-- JS füllt hier die Zeilen -->
-          </tbody>
-        </table>
-      </div>
-    </section>
-  </main>
+  <!-- Optional: Show recent activity history -->
+  <section class="table-section" style="margin-top: 2rem;">
+    <h3>Vergangene Aktivitäten (letzte 7 Tage)</h3>
+    <div class="table-wrapper">
+      <table id="historyTable" style="display: none;">
+        <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Aufgabe</th>
+          <th>Zeit</th>
+          <th>Status</th>
+          <th>Durchgeführt von</th>
+        </tr>
+        </thead>
+        <tbody>
+        <!-- JavaScript fills this -->
+        </tbody>
+      </table>
+      <button id="showHistoryBtn" class="btn-secondary">Vergangene Aktivitäten anzeigen</button>
+    </div>
+  </section>
+</main>
 
-  <!-- FOOTER -->
-  <footer class="footer">
-    <p>&copy; 2025 PflegeVision. Alle Rechte vorbehalten.</p>
-  </footer>
+<!-- FOOTER -->
+<footer class="footer">
+  <p>&copy; 2025 PflegeVision. Alle Rechte vorbehalten.</p>
+</footer>
 
-  <script src="dashboard_patient.js"></script>
+<script>
+  // Updated patient dashboard script with the new functionality
+  document.addEventListener('DOMContentLoaded', () => {
+    const userEl = document.getElementById('username');
+    const caregiverEl = document.getElementById('caregiver');
+    const taskCountEl = document.getElementById('todayTaskCount');
+    const tableBody = document.querySelector('#assignmentsTable tbody');
+    const historyTable = document.getElementById('historyTable');
+    const historyTableBody = document.querySelector('#historyTable tbody');
+    const showHistoryBtn = document.getElementById('showHistoryBtn');
+
+    // Get current user from sessionStorage
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+    const patientId = currentUser.id;
+
+    if (!patientId) {
+      alert('Benutzer nicht gefunden. Bitte loggen Sie sich erneut ein.');
+      window.location.href = '/';
+      return;
+    }
+
+    // Function to load patient dashboard data
+    function loadDashboardData() {
+      fetch(`/api/patient/dashboard/${patientId}`)
+              .then(res => {
+                if (!res.ok) {
+                  throw new Error('Network response was not ok');
+                }
+                return res.json();
+              })
+              .then(data => {
+                if (data.success) {
+                  userEl.textContent = data.username;
+                  caregiverEl.textContent = data.caregiver;
+                  taskCountEl.textContent = data.todaysAssignments.length;
+
+                  // Clear existing table rows
+                  tableBody.innerHTML = '';
+
+                  // Add assignments to table
+                  if (data.todaysAssignments.length === 0) {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                  <td colspan="3" style="text-align: center; color: #666;">
+                    Keine Aufgaben für heute geplant
+                  </td>
+                `;
+                    tableBody.appendChild(tr);
+                  } else {
+                    data.todaysAssignments.forEach(a => {
+                      const tr = document.createElement('tr');
+                      tr.innerHTML = `
+                    <td>${a.aufgabe}</td>
+                    <td>${a.zeit}</td>
+                    <td><span class="status ${a.status.toLowerCase()}">${a.status}</span></td>
+                  `;
+                      tableBody.appendChild(tr);
+                    });
+                  }
+                } else {
+                  throw new Error(data.message || 'Failed to load dashboard');
+                }
+              })
+              .catch(error => {
+                console.error('Dashboard loading error:', error);
+                userEl.textContent = currentUser.username || 'Unbekannt';
+                caregiverEl.textContent = 'Nicht verfügbar';
+                taskCountEl.textContent = '—';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+              <td colspan="3" style="text-align: center; color: #666;">
+                Fehler beim Laden der Daten. Bitte versuchen Sie es später erneut.
+              </td>
+            `;
+                tableBody.appendChild(tr);
+              });
+    }
+
+    // Load assignment history
+    function loadAssignmentHistory() {
+      fetch(`/api/patient/assignments/history/${patientId}?days=7`)
+              .then(res => res.json())
+              .then(data => {
+                if (data.success) {
+                  historyTableBody.innerHTML = '';
+
+                  if (data.assignments.length === 0) {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                  <td colspan="5" style="text-align: center; color: #666;">
+                    Keine vergangenen Aktivitäten gefunden
+                  </td>
+                `;
+                    historyTableBody.appendChild(tr);
+                  } else {
+                    data.assignments.forEach(a => {
+                      const tr = document.createElement('tr');
+                      tr.innerHTML = `
+                    <td>${a.datum}</td>
+                    <td>${a.aufgabe}</td>
+                    <td>${a.zeit}</td>
+                    <td><span class="status ${a.status.toLowerCase()}">${a.status}</span></td>
+                    <td>${a.pflegekraft}</td>
+                  `;
+                      historyTableBody.appendChild(tr);
+                    });
+                  }
+
+                  historyTable.style.display = 'table';
+                  showHistoryBtn.textContent = 'Vergangene Aktivitäten ausblenden';
+                }
+              })
+              .catch(error => {
+                console.error('History loading error:', error);
+                alert('Fehler beim Laden der Aktivitäten-Historie');
+              });
+    }
+
+    // Toggle history display
+    showHistoryBtn.addEventListener('click', () => {
+      if (historyTable.style.display === 'none' || historyTable.style.display === '') {
+        loadAssignmentHistory();
+      } else {
+        historyTable.style.display = 'none';
+        showHistoryBtn.textContent = 'Vergangene Aktivitäten anzeigen';
+      }
+    });
+
+    // Load dashboard data initially
+    loadDashboardData();
+
+    // Auto-refresh every 30 seconds to show new assignments
+    setInterval(loadDashboardData, 30000);
+
+    // Logout function
+    window.logout = function() {
+      if (confirm('Möchten Sie sich wirklich abmelden?')) {
+        sessionStorage.removeItem('currentUser');
+        window.location.href = '/';
+      }
+    };
+
+    // Particle background code (keeping existing code)
+    const canvas = document.getElementById('bg');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    const count = 120;
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    class Particle {
+      constructor() { this.reset(); }
+      reset() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size = Math.random() * 3 + 1;
+        this.vx = (Math.random() - 0.5) * 0.7;
+        this.vy = (Math.random() - 0.5) * 0.7;
+        this.alpha = Math.random() * 0.5 + 0.3;
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height)
+          this.reset();
+      }
+      draw() {
+        ctx.fillStyle = `rgba(255,255,255,${this.alpha})`;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function init() {
+      particles = [];
+      for (let i = 0; i < count; i++)
+        particles.push(new Particle());
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+      requestAnimationFrame(animate);
+    }
+
+    init();
+    animate();
+  });
+</script>
+
+<style>
+  .btn-secondary {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 1rem 0;
+    transition: background 0.2s ease;
+  }
+
+  .btn-secondary:hover {
+    background: #5a6268;
+  }
+</style>
 </body>
 </html>

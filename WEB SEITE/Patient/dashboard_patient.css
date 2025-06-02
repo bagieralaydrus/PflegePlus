@@ -300,6 +300,171 @@ body {
   background: #c9302c;
 }
 
+/* Add these additional styles to your existing dashboard_patient.css */
+
+/* Enhanced card styling for patient info */
+.card p {
+  font-size: 1.5rem;
+  color: #2d7ff9;
+  font-weight: 600;
+}
+
+/* Better status indicators */
+.status.abgeschlossen {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status.ausstehend {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+/* Loading states */
+.loading {
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Auto-refresh indicator */
+.refresh-indicator {
+  position: fixed;
+  top: 70px;
+  right: 20px;
+  background: rgba(45, 127, 249, 0.9);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 10;
+}
+
+.refresh-indicator.show {
+  opacity: 1;
+}
+
+/* Enhanced table styling */
+#assignmentsTable tr:hover,
+#historyTable tr:hover {
+  background-color: rgba(45, 127, 249, 0.05);
+}
+
+/* Better responsive design for patient cards */
+@media (max-width: 768px) {
+  .cards {
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .card {
+    max-width: 100%;
+    width: 280px;
+  }
+
+  .dashboard-header h2 {
+    font-size: 1.25rem;
+    line-height: 1.4;
+  }
+}
+
+/* Notification styles for new assignments */
+.new-assignment {
+  animation: highlightNew 2s ease-in-out;
+}
+
+@keyframes highlightNew {
+  0% { background-color: rgba(45, 127, 249, 0.2); }
+  100% { background-color: transparent; }
+}
+
+/* Empty state styling */
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: #6c757d;
+}
+
+.empty-state img {
+  width: 64px;
+  height: 64px;
+  opacity: 0.5;
+  margin-bottom: 1rem;
+}
+
+/* Button styles */
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  margin: 1rem 0;
+  transition: background 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.btn-secondary:hover {
+  background: #5a6268;
+}
+
+/* History table specific styling */
+#historyTable {
+  margin-top: 1rem;
+}
+
+#historyTable th {
+  background: rgba(108, 117, 125, 0.1);
+  color: #495057;
+}
+
+/* Success/Error message styling */
+.message {
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+.message.success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.message.error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+/* Navigation improvements */
+.nav a:last-child {
+  color: #dc3545;
+}
+
+.nav a:last-child:hover {
+  color: #c82333;
+}
+
+/* Task count styling in cards */
+.card p[id="todayTaskCount"] {
+  font-size: 2.5rem;
+  font-weight: bold;
+}
+
+/* Time column styling */
+td:nth-child(2) {
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  color: #495057;
+}
+
 @media (max-width: 600px) {
   .modern-card {
     margin: 1rem;
