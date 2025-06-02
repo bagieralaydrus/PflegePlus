@@ -1,16 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
   const userEl       = document.getElementById('username');
-  const activeEl     = document.getElementById('activePatients');
-  const completedEl  = document.getElementById('completedAssignments');
+  const caregiverEl  = document.getElementById('caregiver');
   const tableBody    = document.querySelector('#assignmentsTable tbody');
 
-  // 1) Dashboard-Daten laden
   fetch('/api/dashboard')
     .then(res => res.json())
     .then(data => {
       userEl.textContent      = data.username;
-      activeEl.textContent    = data.activePatients;
-      completedEl.textContent = data.completedAssignments;
+      caregiverEl.textContent = data.caregiver || 'Hans Peter';
       data.todaysAssignments.forEach(a => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -22,14 +19,11 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     })
     .catch(() => {
-      // Fallback-Dummy
       userEl.textContent      = 'Lisa';
-      activeEl.textContent    = 24;
-      completedEl.textContent = 12;
+      caregiverEl.textContent = 'Hans Peter';
       [
-        {patient:'Anna Müller', aufgabe:'Blutdruck messen', zeit:'08:00', status:'Abgeschlossen'},
-        {patient:'Johann Becker', aufgabe:'Mobilisation', zeit:'09:30', status:'Ausstehend'},
-        // …
+        {aufgabe:'Blutdruck messen', zeit:'08:00', status:'Abgeschlossen'},
+        {aufgabe:'Mobilisation', zeit:'09:30', status:'Ausstehend'},
       ].forEach(a => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -41,7 +35,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-  // 2) Particle-Hintergrund
   const canvas = document.getElementById('bg');
   const ctx    = canvas.getContext('2d');
   let particles = [];

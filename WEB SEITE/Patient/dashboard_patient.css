@@ -155,7 +155,154 @@ body {
   color: #555;
 }
 
+/* Zusätzlich für Information ändern */
+.form-section {
+  margin-bottom: 1.5rem;
+}
+
+.form-section label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #555;
+}
+
+.form-section textarea,
+.form-section select {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.divider {
+  margin: 2rem 0;
+  height: 1px;
+  background-color: #ddd;
+}
+
+.delete-section h2 {
+  color: #d9534f;
+  margin-bottom: 0.5rem;
+}
+
+.delete-section p {
+  color: #a94442;
+  margin-bottom: 1rem;
+}
+
+.delete-btn {
+  background-color: #d9534f;
+  color: #fff;
+  border: none;
+  padding: 0.8rem 2rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.delete-btn:hover {
+  background-color: #c9302c;
+}
+
+
+
+
 /* ====== Responsive ====== */
 @media (max-width: 768px) {
   .cards { flex-direction: column; align-items: center; }
+}
+
+
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+.modern-card {
+  background: #fff;
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.1);
+}
+
+.modern-card h1, .modern-card h2 {
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.modern-form .form-group {
+  margin-bottom: 1.5rem;
+}
+
+.modern-form label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #555;
+}
+
+.modern-form textarea,
+.modern-form select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.modern-form textarea:focus,
+.modern-form select:focus {
+  border-color: #2d7ff9;
+  outline: none;
+}
+
+.btn-primary {
+  background: linear-gradient(90deg, #2d7ff9, #4b86f9);
+  color: white;
+  border: none;
+  padding: 0.8rem 2rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(90deg, #1b5fd9, #376de9);
+}
+
+.danger-card {
+  border-left: 4px solid #d9534f;
+  margin-top: 2rem;
+}
+
+.danger-card p {
+  color: #a94442;
+  margin: 1rem 0;
+}
+
+.btn-danger {
+  background: #d9534f;
+  color: white;
+  border: none;
+  padding: 0.8rem 2rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.btn-danger:hover {
+  background: #c9302c;
+}
+
+@media (max-width: 600px) {
+  .modern-card {
+    margin: 1rem;
+    padding: 1.5rem;
+  }
 }
