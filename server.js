@@ -745,3 +745,659 @@ app.get('/api/admin/dashboard', async (req, res) => {
         });
     }
 });
+
+// Add these endpoints to your existing server.js file
+
+// ========== TRANSFER MANAGEMENT ENDPOINTS ==========
+
+// Handle admin-initiated transfers
+app.post('/api/admin/transfers', async (req, res) => {
+    const { patientId, newLocation, reason, adminId } = req.body;
+
+    try {
+        // Start transaction
+        await pool.query('BEGIN');
+
+        // Get current patient location
+        const currentPatientQuery = `
+            SELECT standort, vorname, nachname 
+            FROM patienten 
+            WHERE id = $1
+        `;
+        const currentPatient = await pool.query(currentPatientQuery, [patientId]);
+
+        if (currentPatient.rows.length === 0) {
+            throw new Error('Patient nicht gefunden');
+        }
+
+        const patient = currentPatient.rows[0];
+        const oldLocation = patient.standort;
+
+        if (oldLocation === newLocation) {
+            throw new Error('Patient ist bereits am gewünschten Standort');
+        }
+
+        // Update patient location
+        const updatePatientQuery = `
+            UPDATE patienten 
+            SET standort = $1, updated_at = NOW()
+            WHERE id = $2
+        `;
+        await pool.query(updatePatientQuery, [newLocation, patientId]);
+
+        // Log the transfer in standort_verlauf
+        const logTransferQuery = `
+            INSERT INTO standort_verlauf (patient_id, alter_standort, neuer_standort, grund, geaendert_von, geaendert_am)
+            VALUES ($1, $2, $3, $4, $5, NOW())
+        `;
+        await pool.query(logTransferQuery, [patientId, oldLocation, newLocation, reason, adminId]);
+
+        // Create notification for assigned pflegekraft if exists
+        const pflegekraftQuery = `
+            SELECT mitarbeiter_id 
+            FROM patient_zuweisung 
+            WHERE patient_id = $1 AND status = 'active'
+        `;
+        const pflegekraftResult = await pool.query(pflegekraftQuery, [patientId]);
+
+        if (pflegekraftResult.rows.length > 0) {
+            const pflegekraftId = pflegekraftResult.rows[0].mitarbeiter_id;
+
+            const notificationQuery = `
+                INSERT INTO benachrichtigungen (patient_id, mitarbeiter_id, typ, titel, nachricht, prioritaet)
+                VALUES ($1, $2, 'standort_wechsel', 'Patient Standortwechsel', $3, 'normal')
+            `;
+            const notificationMessage = `${patient.vorname} ${patient.nachname} wurde von ${oldLocation} nach ${newLocation} verlegt.`;
+            await pool.query(notificationQuery, [patientId, pflegekraftId, notificationMessage]);
+        }
+
+        await pool.query('COMMIT');
+
+        res.json({
+            success: true,
+            message: `Patient erfolgreich von ${oldLocation} nach ${newLocation} verlegt`
+        });
+
+    } catch (error) {
+        await pool.query('ROLLBACK');
+        console.error('Transfer error:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message || 'Fehler beim Transfer'
+        });
+    }
+});
+
+// Get recent transfers
+app.get('/api/admin/transfers/recent', async (req, res) => {
+    try {
+        const recentTransfersQuery = `
+            SELECT 
+                sv.*,
+                p.vorname || ' ' || p.nachname as patient_name,
+                m.vorname || ' ' || m.nachname as admin_name
+            FROM standort_verlauf sv
+            JOIN patienten p ON sv.patient_id = p.id
+            LEFT JOIN mitarbeiter m ON sv.geaendert_von = m.id
+            ORDER BY sv.geaendert_am DESC
+            LIMIT 10
+        `;
+
+        const result = await pool.query(recentTransfersQuery);
+
+        res.json({
+            success: true,
+            transfers: result.rows
+        });
+
+    } catch (error) {
+        console.error('Recent transfers error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler beim Laden der Transfer-Historie'
+        });
+    }
+});
+
+// Get transfer requests (for future implementation)
+app.get('/api/admin/transfers/requests', async (req, res) => {
+    try {
+        // This endpoint would be used if you implement a request system
+        // For now, return empty array
+        res.json({
+            success: true,
+            requests: []
+        });
+
+    } catch (error) {
+        console.error('Transfer requests error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler beim Laden der Transfer-Anfragen'
+        });
+    }
+});
+
+// ========== DETAILED STATISTICS ENDPOINTS ==========
+
+// Get detailed statistics for the statistics section
+app.get('/api/admin/statistics/detailed', async (req, res) => {
+    try {
+        // Location statistics with more details
+        const locationStatsQuery = `
+            SELECT 
+                p.standort,
+                COUNT(p.id) as patient_count,
+                COUNT(CASE WHEN p.status = 'active' THEN 1 END) as active_patients,
+                COUNT(CASE WHEN p.status = 'discharged' THEN 1 END) as discharged_patients
+            FROM patienten p
+            GROUP BY p.standort
+            ORDER BY p.standort
+        `;
+
+        // Pflegekraft workload statistics
+        const workloadStatsQuery = `
+            SELECT 
+                m.id,
+                m.vorname || ' ' || m.nachname as pflegekraft_name,
+                m.standort,
+                COUNT(pz.patient_id) as patient_count,
+                ROUND((COUNT(pz.patient_id)::decimal / 24) * 100, 1) as utilization_percentage
+            FROM mitarbeiter m
+            LEFT JOIN patient_zuweisung pz ON m.id = pz.mitarbeiter_id AND pz.status = 'active'
+            WHERE m.rolle = 'pflegekraft' AND m.status = 'active'
+            GROUP BY m.id, m.vorname, m.nachname, m.standort
+            ORDER BY patient_count DESC
+        `;
+
+        const [locationResult, workloadResult] = await Promise.all([
+            pool.query(locationStatsQuery),
+            pool.query(workloadStatsQuery)
+        ]);
+
+        res.json({
+            success: true,
+            statistics: {
+                locations: locationResult.rows,
+                workload: workloadResult.rows
+            }
+        });
+
+    } catch (error) {
+        console.error('Detailed statistics error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler beim Laden der detaillierten Statistiken'
+        });
+    }
+});
+
+// ========== IMPROVED ADMIN DASHBOARD ENDPOINT ==========
+
+// Enhanced admin dashboard endpoint with better error handling
+app.get('/api/admin/dashboard', async (req, res) => {
+    try {
+        // Get location statistics for patients
+        const patientLocationStats = await pool.query(`
+            SELECT 
+                COALESCE(p.standort, 'Unbekannt') as standort,
+                COUNT(p.id) as total_patients,
+                COUNT(CASE WHEN pz.status = 'active' THEN 1 END) as assigned_patients
+            FROM patienten p
+            LEFT JOIN patient_zuweisung pz ON p.id = pz.patient_id AND pz.status = 'active'
+            WHERE p.status = 'active'
+            GROUP BY p.standort
+            ORDER BY p.standort
+        `);
+
+        // Get pflegekraft statistics by location
+        const pflegekraftLocationStats = await pool.query(`
+            SELECT 
+                COALESCE(m.standort, 'Unbekannt') as standort,
+                COUNT(m.id) as total_pflegekraefte,
+                ROUND(AVG(COALESCE(patient_counts.patient_count, 0)), 2) as avg_patients_per_pflegekraft
+            FROM mitarbeiter m
+            LEFT JOIN (
+                SELECT mitarbeiter_id, COUNT(*) as patient_count
+                FROM patient_zuweisung 
+                WHERE status = 'active'
+                GROUP BY mitarbeiter_id
+            ) patient_counts ON m.id = patient_counts.mitarbeiter_id
+            WHERE m.rolle = 'pflegekraft' AND m.status = 'active'
+            GROUP BY m.standort
+            ORDER BY m.standort
+        `);
+
+        // Get recent transfers (last 7 days)
+        const recentTransfers = await pool.query(`
+            SELECT 
+                sv.*,
+                p.vorname || ' ' || p.nachname as patient_name
+            FROM standort_verlauf sv
+            JOIN patienten p ON sv.patient_id = p.id
+            WHERE sv.geaendert_am >= NOW() - INTERVAL '7 days'
+            ORDER BY sv.geaendert_am DESC
+            LIMIT 5
+        `);
+
+        // Get workload alerts (Pflegekräfte with >20 patients)
+        const workloadAlerts = await pool.query(`
+            SELECT 
+                m.id,
+                COALESCE(m.vorname || ' ' || m.nachname, m.benutzername) as pflegekraft_name,
+                COALESCE(m.standort, 'Unbekannt') as standort,
+                COUNT(pz.patient_id) as patient_count
+            FROM mitarbeiter m
+            LEFT JOIN patient_zuweisung pz ON m.id = pz.mitarbeiter_id AND pz.status = 'active'
+            WHERE m.rolle = 'pflegekraft' AND m.status = 'active'
+            GROUP BY m.id, m.vorname, m.nachname, m.benutzername, m.standort
+            HAVING COUNT(pz.patient_id) > 20
+            ORDER BY COUNT(pz.patient_id) DESC
+        `);
+
+        // Get overall system statistics
+        const systemStats = await pool.query(`
+            SELECT 
+                (SELECT COUNT(*) FROM patienten WHERE status = 'active') as total_active_patients,
+                (SELECT COUNT(*) FROM mitarbeiter WHERE rolle = 'pflegekraft' AND status = 'active') as total_pflegekraefte,
+                (SELECT COUNT(*) FROM patient_zuweisung WHERE status = 'active') as total_assignments
+        `);
+
+        res.json({
+            success: true,
+            dashboard: {
+                location_statistics: {
+                    patients: patientLocationStats.rows,
+                    pflegekraefte: pflegekraftLocationStats.rows
+                },
+                recent_transfers: recentTransfers.rows,
+                workload_alerts: workloadAlerts.rows,
+                system_stats: systemStats.rows[0]
+            }
+        });
+
+    } catch (error) {
+        console.error('Admin dashboard error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error loading admin dashboard: ' + error.message
+        });
+    }
+});
+
+// ========== PATIENT MANAGEMENT ENDPOINTS ==========
+
+// Get all patients for admin management
+app.get('/api/admin/patients', async (req, res) => {
+    try {
+        const patientsQuery = `
+            SELECT 
+                p.id,
+                p.vorname,
+                p.nachname,
+                p.geburtsdatum,
+                p.standort,
+                p.zimmer_nummer,
+                p.status,
+                p.aufnahmedatum,
+                COALESCE(m.vorname || ' ' || m.nachname, 'Nicht zugewiesen') as assigned_pflegekraft
+            FROM patienten p
+            LEFT JOIN patient_zuweisung pz ON p.id = pz.patient_id AND pz.status = 'active'
+            LEFT JOIN mitarbeiter m ON pz.mitarbeiter_id = m.id
+            ORDER BY p.nachname, p.vorname
+        `;
+
+        const result = await pool.query(patientsQuery);
+
+        res.json({
+            success: true,
+            patients: result.rows
+        });
+
+    } catch (error) {
+        console.error('Admin patients error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error loading patients list'
+        });
+    }
+});
+
+// ========== PFLEGEKRAFT MANAGEMENT ENDPOINTS ==========
+
+// Get all pflegekraft for admin management
+app.get('/api/admin/pflegekraefte', async (req, res) => {
+    try {
+        const pflegekraftQuery = `
+            SELECT 
+                m.id,
+                m.vorname,
+                m.nachname,
+                m.benutzername,
+                m.standort,
+                m.rolle,
+                m.status,
+                COUNT(pz.patient_id) as assigned_patients
+            FROM mitarbeiter m
+            LEFT JOIN patient_zuweisung pz ON m.id = pz.mitarbeiter_id AND pz.status = 'active'
+            WHERE m.rolle = 'pflegekraft'
+            GROUP BY m.id, m.vorname, m.nachname, m.benutzername, m.standort, m.rolle, m.status
+            ORDER BY m.nachname, m.vorname
+        `;
+
+        const result = await pool.query(pflegekraftQuery);
+
+        res.json({
+            success: true,
+            pflegekraefte: result.rows
+        });
+
+    } catch (error) {
+        console.error('Admin pflegekraefte error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error loading pflegekraefte list'
+        });
+    }
+});
+
+// ========== ASSIGNMENT MANAGEMENT ENDPOINTS ==========
+
+// Get assignment overview
+app.get('/api/admin/assignments/overview', async (req, res) => {
+    try {
+        const assignmentsQuery = `
+            SELECT 
+                pz.id,
+                p.vorname || ' ' || p.nachname as patient_name,
+                p.standort as patient_standort,
+                m.vorname || ' ' || m.nachname as pflegekraft_name,
+                m.standort as pflegekraft_standort,
+                pz.assigned_at,
+                pz.status
+            FROM patient_zuweisung pz
+            JOIN patienten p ON pz.patient_id = p.id
+            JOIN mitarbeiter m ON pz.mitarbeiter_id = m.id
+            WHERE pz.status = 'active'
+            ORDER BY pz.assigned_at DESC
+        `;
+
+        const result = await pool.query(assignmentsQuery);
+
+        res.json({
+            success: true,
+            assignments: result.rows
+        });
+
+    } catch (error) {
+        console.error('Assignment overview error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error loading assignment overview'
+        });
+    }
+});
+
+// Manually assign patient to pflegekraft
+app.post('/api/admin/assignments/manual', async (req, res) => {
+    const { patientId, pflegekraftId, adminId } = req.body;
+
+    try {
+        // Check if patient is already assigned
+        const existingQuery = `
+            SELECT * FROM patient_zuweisung 
+            WHERE patient_id = $1 AND status = 'active'
+        `;
+        const existing = await pool.query(existingQuery, [patientId]);
+
+        if (existing.rows.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Patient ist bereits zugewiesen'
+            });
+        }
+
+        // Check pflegekraft capacity
+        const capacityQuery = `
+            SELECT COUNT(*) as current_patients
+            FROM patient_zuweisung
+            WHERE mitarbeiter_id = $1 AND status = 'active'
+        `;
+        const capacity = await pool.query(capacityQuery, [pflegekraftId]);
+
+        if (parseInt(capacity.rows[0].current_patients) >= 24) {
+            return res.status(400).json({
+                success: false,
+                message: 'Pflegekraft hat bereits maximale Anzahl von Patienten (24)'
+            });
+        }
+
+        // Create assignment
+        const assignQuery = `
+            INSERT INTO patient_zuweisung (patient_id, mitarbeiter_id, status, assigned_at)
+            VALUES ($1, $2, 'active', NOW())
+            RETURNING *
+        `;
+
+        const result = await pool.query(assignQuery, [patientId, pflegekraftId]);
+
+        res.json({
+            success: true,
+            message: 'Patient erfolgreich zugewiesen',
+            assignment: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Manual assignment error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler bei der Zuweisung: ' + error.message
+        });
+    }
+});
+
+// Remove assignment
+app.delete('/api/admin/assignments/:assignmentId', async (req, res) => {
+    const { assignmentId } = req.params;
+    const { reason = 'Admin removal' } = req.body;
+
+    try {
+        // Update assignment status
+        const updateQuery = `
+            UPDATE patient_zuweisung 
+            SET status = $1, updated_at = NOW()
+            WHERE id = $2
+            RETURNING *
+        `;
+
+        const result = await pool.query(updateQuery, [reason, assignmentId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Zuweisung nicht gefunden'
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Zuweisung erfolgreich entfernt'
+        });
+
+    } catch (error) {
+        console.error('Assignment removal error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler beim Entfernen der Zuweisung'
+        });
+    }
+});
+
+// ========== NOTIFICATION MANAGEMENT ==========
+
+// Get system notifications for admin
+app.get('/api/admin/notifications', async (req, res) => {
+    try {
+        const notificationsQuery = `
+            SELECT 
+                b.*,
+                p.vorname || ' ' || p.nachname as patient_name,
+                m.vorname || ' ' || m.nachname as mitarbeiter_name
+            FROM benachrichtigungen b
+            LEFT JOIN patienten p ON b.patient_id = p.id
+            LEFT JOIN mitarbeiter m ON b.mitarbeiter_id = m.id
+            WHERE b.erstellt_am >= NOW() - INTERVAL '24 hours'
+            ORDER BY b.erstellt_am DESC
+            LIMIT 50
+        `;
+
+        const result = await pool.query(notificationsQuery);
+
+        res.json({
+            success: true,
+            notifications: result.rows
+        });
+
+    } catch (error) {
+        console.error('Admin notifications error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error loading notifications'
+        });
+    }
+});
+
+// ========== SYSTEM HEALTH ENDPOINTS ==========
+
+// Get system health status
+app.get('/api/admin/system/health', async (req, res) => {
+    try {
+        // Database connection test
+        const dbTest = await pool.query('SELECT NOW()');
+
+        // Get various system metrics
+        const metricsQuery = `
+            SELECT 
+                (SELECT COUNT(*) FROM patienten WHERE status = 'active') as active_patients,
+                (SELECT COUNT(*) FROM mitarbeiter WHERE status = 'active') as active_staff,
+                (SELECT COUNT(*) FROM patient_zuweisung WHERE status = 'active') as active_assignments,
+                (SELECT COUNT(*) FROM assignments WHERE DATE(created_at) = CURRENT_DATE) as todays_tasks,
+                (SELECT COUNT(*) FROM benachrichtigungen WHERE gelesen = false) as unread_notifications
+        `;
+
+        const metrics = await pool.query(metricsQuery);
+
+        res.json({
+            success: true,
+            health: {
+                database: 'connected',
+                timestamp: dbTest.rows[0].now,
+                metrics: metrics.rows[0]
+            }
+        });
+
+    } catch (error) {
+        console.error('System health error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'System health check failed',
+            health: {
+                database: 'disconnected',
+                error: error.message
+            }
+        });
+    }
+});
+
+// ========== DATA EXPORT ENDPOINTS ==========
+
+// Export data for admin (basic CSV export)
+app.get('/api/admin/export/:type', async (req, res) => {
+    const { type } = req.params;
+
+    try {
+        let query = '';
+        let filename = '';
+
+        switch(type) {
+            case 'patients':
+                query = `
+                    SELECT 
+                        p.id, p.vorname, p.nachname, p.geburtsdatum, 
+                        p.standort, p.zimmer_nummer, p.status, p.aufnahmedatum
+                    FROM patienten p
+                    ORDER BY p.nachname, p.vorname
+                `;
+                filename = 'patienten_export.csv';
+                break;
+
+            case 'assignments':
+                query = `
+                    SELECT 
+                        p.vorname || ' ' || p.nachname as patient,
+                        m.vorname || ' ' || m.nachname as pflegekraft,
+                        p.standort,
+                        pz.assigned_at
+                    FROM patient_zuweisung pz
+                    JOIN patienten p ON pz.patient_id = p.id
+                    JOIN mitarbeiter m ON pz.mitarbeiter_id = m.id
+                    WHERE pz.status = 'active'
+                    ORDER BY pz.assigned_at DESC
+                `;
+                filename = 'zuweisungen_export.csv';
+                break;
+
+            case 'transfers':
+                query = `
+                    SELECT 
+                        p.vorname || ' ' || p.nachname as patient,
+                        sv.alter_standort,
+                        sv.neuer_standort,
+                        sv.grund,
+                        sv.geaendert_am
+                    FROM standort_verlauf sv
+                    JOIN patienten p ON sv.patient_id = p.id
+                    ORDER BY sv.geaendert_am DESC
+                `;
+                filename = 'transfers_export.csv';
+                break;
+
+            default:
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid export type'
+                });
+        }
+
+        const result = await pool.query(query);
+
+        // Convert to CSV
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'No data to export'
+            });
+        }
+
+        const headers = Object.keys(result.rows[0]);
+        const csvContent = [
+            headers.join(','),
+            ...result.rows.map(row =>
+                headers.map(header =>
+                    JSON.stringify(row[header] || '')
+                ).join(',')
+            )
+        ].join('\n');
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.send(csvContent);
+
+    } catch (error) {
+        console.error('Export error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Export failed: ' + error.message
+        });
+    }
+});
