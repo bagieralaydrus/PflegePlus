@@ -5,196 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PflegeVision - Anmeldung</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    /* RESET */
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: 'Inter', sans-serif;
-      background: #0d1b2a;
-      overflow: hidden;
-      height: 100vh;
-    }
-
-    /* CANVAS - SIMPLE AS FUCK */
-    #bg {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 1;
-      background: linear-gradient(135deg, #0d1b2a 0%, #1e3a8a 50%, #1e40af 100%);
-    }
-
-    /* EVERYTHING ELSE ON TOP */
-    .container {
-      position: relative;
-      z-index: 10;
-      display: flex;
-      height: 100vh;
-    }
-
-    /* LEFT SIDE - BRANDING */
-    .left {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      background: rgba(255,255,255,0.05);
-    }
-
-    .logo-area {
-      text-align: center;
-    }
-
-    .logo-icon {
-      width: 80px;
-      height: 80px;
-      margin: 0 auto 20px;
-      background: rgba(255,255,255,0.2);
-      border-radius: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .brand-name {
-      font-size: 3rem;
-      font-weight: 700;
-      margin-bottom: 10px;
-      color: white;
-    }
-
-    .brand-tagline {
-      font-size: 1.2rem;
-      opacity: 0.9;
-    }
-
-    /* RIGHT SIDE - LOGIN */
-    .right {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem;
-    }
-
-    .login-box {
-      background: white;
-      padding: 3rem;
-      border-radius: 16px;
-      box-shadow: 0 25px 50px rgba(0,0,0,0.3);
-      width: 100%;
-      max-width: 480px;
-    }
-
-    .login-header {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-
-    .login-header h2 {
-      font-size: 2rem;
-      color: #1e293b;
-      margin-bottom: 0.5rem;
-    }
-
-    .login-header p {
-      color: #64748b;
-    }
-
-    /* FORM */
-    .form-group {
-      margin-bottom: 1.5rem;
-    }
-
-    .form-group label {
-      display: block;
-      margin-bottom: 0.5rem;
-      font-weight: 500;
-      color: #1e293b;
-    }
-
-    .input-wrapper {
-      position: relative;
-    }
-
-    .input-wrapper input,
-    .input-wrapper select {
-      width: 100%;
-      padding: 1rem;
-      border: 2px solid #e2e8f0;
-      border-radius: 12px;
-      font-size: 1rem;
-      transition: all 0.3s;
-    }
-
-    .input-wrapper input:focus,
-    .input-wrapper select:focus {
-      outline: none;
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
-    }
-
-    .date-group {
-      display: grid;
-      grid-template-columns: 1fr 2fr 1fr;
-      gap: 0.75rem;
-    }
-
-    .login-btn {
-      width: 100%;
-      padding: 1rem;
-      background: linear-gradient(135deg, #2563eb, #3b82f6);
-      color: white;
-      border: none;
-      border-radius: 12px;
-      font-size: 1rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.3s;
-      margin-top: 1rem;
-    }
-
-    .login-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 25px rgba(37,99,235,0.3);
-    }
-
-    /* MOBILE */
-    @media (max-width: 768px) {
-      .container {
-        flex-direction: column;
-      }
-      .left {
-        flex: none;
-        padding: 1rem;
-      }
-      .brand-name {
-        font-size: 2rem;
-      }
-      .date-group {
-        grid-template-columns: 1fr;
-        gap: 0.5rem;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<!-- CANVAS FOR PARTICLES -->
+<!-- PARTICLE CANVAS - Your teammate's background -->
 <canvas id="bg"></canvas>
 
-<!-- MAIN CONTENT -->
-<div class="container">
-  <!-- LEFT SIDE -->
-  <div class="left">
-    <div class="logo-area">
+<!-- LOADING OVERLAY -->
+<div id="loadingOverlay" class="loading-overlay">
+  <div class="loading-spinner">
+    <div class="spinner"></div>
+    <p>Anmeldung wird verarbeitet...</p>
+  </div>
+</div>
+
+<!-- MAIN CONTAINER -->
+<div class="main-container">
+  <!-- LEFT SIDE - BRANDING -->
+  <div class="branding-section">
+    <div class="logo-container">
       <div class="logo-icon">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="white">
           <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z"/>
@@ -202,31 +31,60 @@
       </div>
       <h1 class="brand-name">PflegeVision</h1>
       <p class="brand-tagline">Moderne Pflege. Digitale Zukunft.</p>
+      <div class="brand-features">
+        <div class="feature-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 12l2 2 4-4"/>
+            <circle cx="12" cy="12" r="10"/>
+          </svg>
+          <span>Sichere Datenübertragung</span>
+        </div>
+        <div class="feature-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="10" rx="2" ry="2"/>
+            <circle cx="12" cy="16" r="1"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          <span>DSGVO-konform</span>
+        </div>
+        <div class="feature-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          <span>Medizinische Standards</span>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- RIGHT SIDE -->
-  <div class="right">
-    <div class="login-box">
+  <!-- RIGHT SIDE - LOGIN FORM -->
+  <div class="login-section">
+    <div class="login-container">
       <div class="login-header">
         <h2>Willkommen zurück</h2>
         <p>Melden Sie sich mit Ihren Zugangsdaten an</p>
       </div>
 
-      <form id="loginForm">
+      <form id="loginForm" class="login-form">
+        <!-- USERNAME FIELD -->
         <div class="form-group">
           <label for="username">Benutzername</label>
           <div class="input-wrapper">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
             <input type="text" id="username" name="username" placeholder="Ihr Benutzername" required>
           </div>
         </div>
 
+        <!-- BIRTHDATE FIELDS -->
         <div class="form-group">
           <label>Geburtsdatum</label>
-          <div class="date-group">
+          <div class="date-input-group">
             <input type="number" id="day" placeholder="Tag" min="1" max="31" required>
             <select id="month" required>
-              <option value="">Monat</option>
+              <option value="">Monat wählen</option>
               <option value="01">Januar</option>
               <option value="02">Februar</option>
               <option value="03">März</option>
@@ -244,126 +102,31 @@
           </div>
         </div>
 
-        <button type="submit" class="login-btn">Anmelden</button>
+        <!-- LOGIN BUTTON -->
+        <button type="submit" class="login-button">
+          <svg class="button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+            <polyline points="10,17 15,12 10,7"/>
+            <line x1="15" y1="12" x2="3" y2="12"/>
+          </svg>
+          <span class="button-text">Anmelden</span>
+        </button>
       </form>
+
+      <!-- FOOTER -->
+      <div class="login-footer">
+        <div class="security-badge">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          <span>Verschlüsselte Verbindung</span>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<script>
-  // === PARTICLES - SUPER SIMPLE VERSION ===
-  console.log('🚀 Starting particles...');
-
-  const canvas = document.getElementById('bg');
-  const ctx = canvas.getContext('2d');
-
-  // Set canvas size
-  function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    console.log('Canvas size:', canvas.width, 'x', canvas.height);
-  }
-  resize();
-  window.addEventListener('resize', resize);
-
-  // Particle array
-  const particles = [];
-  const particleCount = 100;
-
-  // Create particles
-  for (let i = 0; i < particleCount; i++) {
-    particles.push({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      size: Math.random() * 5 + 2,
-      speedX: (Math.random() - 0.5) * 2,
-      speedY: (Math.random() - 0.5) * 2,
-      opacity: Math.random() * 0.8 + 0.2
-    });
-  }
-
-  console.log('✨ Created', particles.length, 'particles');
-
-  // Animation loop
-  function animate() {
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Draw particles
-    particles.forEach(particle => {
-      // Update position
-      particle.x += particle.speedX;
-      particle.y += particle.speedY;
-
-      // Wrap around screen
-      if (particle.x < 0) particle.x = canvas.width;
-      if (particle.x > canvas.width) particle.x = 0;
-      if (particle.y < 0) particle.y = canvas.height;
-      if (particle.y > canvas.height) particle.y = 0;
-
-      // Draw particle
-      ctx.fillStyle = `rgba(255, 255, 255, ${particle.opacity})`;
-      ctx.beginPath();
-      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-      ctx.fill();
-    });
-
-    requestAnimationFrame(animate);
-  }
-
-  // Start animation
-  animate();
-  console.log('🎬 Animation started!');
-
-  // === LOGIN FORM ===
-  document.getElementById('loginForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-
-    const username = document.getElementById('username').value.trim();
-    const day = document.getElementById('day').value.padStart(2, '0');
-    const month = document.getElementById('month').value;
-    const year = document.getElementById('year').value;
-
-    if (!username || !day || !month || !year) {
-      alert('Bitte füllen Sie alle Felder aus.');
-      return;
-    }
-
-    const birthdate = `${year}-${month}-${day}`;
-
-    try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, birthdate })
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        sessionStorage.setItem('currentUser', JSON.stringify({
-          id: data.user.id,
-          username: data.user.username,
-          type: data.user.type
-        }));
-
-        alert(data.message);
-
-        if (data.user.type === 'mitarbeiter') {
-          window.location.href = '/pflegekraft/dashboard.html';
-        } else if (data.user.type === 'patient') {
-          window.location.href = '/patient/';
-        }
-      } else {
-        alert(data.message || 'Anmeldung fehlgeschlagen');
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      alert('Verbindungsfehler. Bitte versuchen Sie es später erneut.');
-    }
-  });
-
-  console.log('🔐 Login form ready!');
-</script>
+<!-- Include JavaScript -->
+<script src="script.js"></script>
 </body>
 </html>
