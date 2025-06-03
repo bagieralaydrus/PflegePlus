@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Administrator Dashboard – PflegeVision</title>
+    <link rel="stylesheet" href="stylesheet.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<!-- PARTICLE BACKGROUND CANVAS -->
+<canvas id="bg"></canvas>
+
+<!-- HEADER -->
+<header class="header">
+    <div class="header-container">
+        <div class="logo">PflegeVision</div>
+        <nav class="nav">
+            <a href="admin_dashboard.html">Dashboard</a>
+            <a href="#" onclick="showTransferSection()">Transfers</a>
+            <a href="#" onclick="showStatisticsSection()">Statistiken</a>
+            <a href="#" onclick="logout()">Abmelden</a>
+        </nav>
+    </div>
+</header>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+    <!-- DASHBOARD OVERVIEW SECTION -->
+    <section id="dashboardSection" class="dashboard-section">
+        <div class="dashboard-header">
+            <h2>Administrator Dashboard</h2>
+            <p>Willkommen zurück, <span id="adminUsername">Administrator</span>!</p>
+        </div>
+
+        <!-- STATS CARDS -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">👥</div>
+                <div class="stat-content">
+                    <h3>Gesamte Patienten</h3>
+                    <p id="totalPatients">—</p>
+                    <span class="stat-subtitle">Aktiv betreut</span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">👨‍⚕️</div>
+                <div class="stat-content">
+                    <h3>Pflegekräfte</h3>
+                    <p id="totalPflegekraefte">—</p>
+                    <span class="stat-subtitle">Im Dienst</span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">🏠</div>
+                <div class="stat-content">
+                    <h3>Krefeld</h3>
+                    <p id="krefeld_patients">—</p>
+                    <span class="stat-subtitle">Patienten</span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">🏢</div>
+                <div class="stat-content">
+                    <h3>Mönchengladbach</h3>
+                    <p id="moenchengladbach_patients">—</p>
+                    <span class="stat-subtitle">Patienten</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- RECENT ACTIVITIES -->
+        <div class="activity-section">
+            <h3>Aktuelle Aktivitäten</h3>
+            <div class="activity-list" id="recentActivities">
+                <div class="activity-item">
+                    <div class="activity-icon">⏳</div>
+                    <div class="activity-content">
+                        <span>Lade Aktivitäten...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- WORKLOAD ALERTS -->
+        <div class="alerts-section">
+            <h3>⚠️ Arbeitsbelastung Warnungen</h3>
+            <div class="alerts-list" id="workloadAlerts">
+                <div class="alert-item">
+                    <span>Prüfe Arbeitsbelastung...</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TRANSFER MANAGEMENT SECTION -->
+    <section id="transferSection" class="transfer-section" style="display: none;">
+        <div class="section-header">
+            <h2>🔄 Transfer Management</h2>
+            <button class="btn-primary" onclick="showTransferForm()">
+                Neuen Transfer durchführen
+            </button>
+        </div>
+
+        <!-- TRANSFER FORM -->
+        <div id="transferForm" class="modern-card" style="display: none;">
+            <h3>Patient Transfer</h3>
+            <form id="adminTransferForm" class="modern-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="transferPatient">Patient auswählen:</label>
+                        <select id="transferPatient" required>
+                            <option value="">-- Patient wählen --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="newLocation">Neuer Standort:</label>
+                        <select id="newLocation" required>
+                            <option value="">-- Standort wählen --</option>
+                            <option value="Krefeld">Krefeld</option>
+                            <option value="Mönchengladbach">Mönchengladbach</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="transferReason">Grund für Transfer:</label>
+                    <textarea id="transferReason" placeholder="Grund für den Standortwechsel..."></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="hideTransferForm()">Abbrechen</button>
+                    <button type="submit" class="btn-primary">Transfer durchführen</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- PENDING REQUESTS -->
+        <div class="modern-card">
+            <h3>📋 Offene Transfer-Anfragen</h3>
+            <div class="table-wrapper">
+                <table id="transferRequestsTable">
+                    <thead>
+                    <tr>
+                        <th>Patient</th>
+                        <th>Angefragt von</th>
+                        <th>Gewünschter Standort</th>
+                        <th>Grund</th>
+                        <th>Datum</th>
+                        <th>Aktionen</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: #666;">
+                            Keine offenen Anfragen
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- RECENT TRANSFERS -->
+        <div class="modern-card">
+            <h3>📝 Kürzliche Transfers</h3>
+            <div class="table-wrapper">
+                <table id="recentTransfersTable">
+                    <thead>
+                    <tr>
+                        <th>Patient</th>
+                        <th>Von</th>
+                        <th>Nach</th>
+                        <th>Grund</th>
+                        <th>Durchgeführt von</th>
+                        <th>Datum</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: #666;">
+                            Lade Transfer-Historie...
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- STATISTICS SECTION -->
+    <section id="statisticsSection" class="statistics-section" style="display: none;">
+        <div class="section-header">
+            <h2>📊 Detaillierte Statistiken</h2>
+        </div>
+
+        <div class="stats-row">
+            <div class="modern-card">
+                <h3>Standort-Verteilung</h3>
+                <div class="location-stats" id="locationStats">
+                    <div class="location-item">
+                        <div class="location-info">
+                            <h4>Krefeld</h4>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: 0%"></div>
+                            </div>
+                            <span class="location-numbers">0 / 0 Patienten</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modern-card">
+                <h3>Pflegekraft Auslastung</h3>
+                <div class="workload-list" id="workloadStats">
+                    <div class="workload-item">
+                        <span>Lade Auslastung...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- FOOTER -->
+<footer class="footer">
+    <p>&copy; 2025 PflegeVision. Alle Rechte vorbehalten.</p>
+</footer>
+
+<!-- NOTIFICATION AREA -->
+<div id="notificationArea"></div>
+
+<script src="script.js"></script>
+</body>
+</html>

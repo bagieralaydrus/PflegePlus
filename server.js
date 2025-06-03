@@ -45,6 +45,7 @@ pool.connect((err, client, release) => {
 });
 
 // Login endpoint
+// Login endpoint - FIXED VERSION
 app.post('/api/login', async (req, res) => {
     const { username, birthdate } = req.body;
 
@@ -58,10 +59,10 @@ app.post('/api/login', async (req, res) => {
     try {
         // Check in Mitarbeiter table first
         const mitarbeiterQuery = `
-      SELECT id, benutzername, 'mitarbeiter' as user_type 
-      FROM mitarbeiter 
-      WHERE LOWER(benutzername) = LOWER($1) AND geburtsdatum = $2
-    `;
+            SELECT id, benutzername, rolle, 'mitarbeiter' as user_type
+            FROM mitarbeiter
+            WHERE LOWER(benutzername) = LOWER($1) AND geburtsdatum = $2
+        `;
 
         const mitarbeiterResult = await pool.query(mitarbeiterQuery, [username, birthdate]);
 
@@ -72,17 +73,18 @@ app.post('/api/login', async (req, res) => {
                 user: {
                     id: mitarbeiterResult.rows[0].id,
                     username: mitarbeiterResult.rows[0].benutzername,
-                    type: 'mitarbeiter'
+                    type: 'mitarbeiter',
+                    role: mitarbeiterResult.rows[0].rolle || 'pflegekraft'  // Default to pflegekraft if rolle is null
                 }
             });
         }
 
         // Check in Patienten table if not found in Mitarbeiter
         const patientenQuery = `
-      SELECT id, benutzername, 'patient' as user_type 
-      FROM patienten 
-      WHERE LOWER(benutzername) = LOWER($1) AND geburtsdatum = $2
-    `;
+            SELECT id, benutzername, 'patient' as user_type
+            FROM patienten
+            WHERE LOWER(benutzername) = LOWER($1) AND geburtsdatum = $2
+        `;
 
         const patientenResult = await pool.query(patientenQuery, [username, birthdate]);
 
@@ -653,4 +655,93 @@ app.get('/api/patient/assignments/history/:patientId', async (req, res) => {
 // Update the existing patient dashboard route to serve the HTML
 app.get('/patient/', (req, res) => {
     res.sendFile(path.join(__dirname, 'WEB SEITE', 'Patient', 'dashboard_patient.html'));
+});
+
+// Add admin static file serving
+app.use('/admin', express.static('WEB SEITE/Admin'));
+
+// Admin dashboard route
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'WEB SEITE', 'Admin', 'index.html'));
+});
+
+// Admin dashboard API endpoint
+app.get('/api/admin/dashboard', async (req, res) => {
+    try {
+        // Get location statistics
+        const locationStats = await pool.query(`
+            SELECT 
+                p.standort,
+                COUNT(p.id) as total_patients,
+                COUNT(CASE WHEN pz.status = 'active' THEN 1 END) as assigned_patients
+            FROM patienten p
+            LEFT JOIN patient_zuweisung pz ON p.id = pz.patient_id AND pz.status = 'active'
+            WHERE p.status = 'active'
+            GROUP BY p.standort
+            ORDER BY p.standort
+        `);
+
+        const pflegekraftStats = await pool.query(`
+            SELECT 
+                m.standort,
+                COUNT(m.id) as total_pflegekraefte,
+                ROUND(AVG(patient_counts.patient_count), 2) as avg_patients_per_pflegekraft
+            FROM mitarbeiter m
+            LEFT JOIN (
+                SELECT mitarbeiter_id, COUNT(*) as patient_count
+                FROM patient_zuweisung 
+                WHERE status = 'active'
+                GROUP BY mitarbeiter_id
+            ) patient_counts ON m.id = patient_counts.mitarbeiter_id
+            WHERE m.rolle = 'pflegekraft' AND m.status = 'active'
+            GROUP BY m.standort
+            ORDER BY m.standort
+        `);
+
+        // Get recent transfers (last 7 days)
+        const recentTransfers = await pool.query(`
+            SELECT 
+                sv.*,
+                p.vorname || ' ' || p.nachname as patient_name
+            FROM standort_verlauf sv
+            JOIN patienten p ON sv.patient_id = p.id
+            WHERE sv.geaendert_am >= NOW() - INTERVAL '7 days'
+            ORDER BY sv.geaendert_am DESC
+            LIMIT 5
+        `);
+
+        // Get workload alerts (Pflegekräfte with >20 patients)
+        const workloadAlerts = await pool.query(`
+            SELECT 
+                m.id,
+                m.vorname || ' ' || m.nachname as pflegekraft_name,
+                m.standort,
+                COUNT(pz.patient_id) as patient_count
+            FROM mitarbeiter m
+            LEFT JOIN patient_zuweisung pz ON m.id = pz.mitarbeiter_id AND pz.status = 'active'
+            WHERE m.rolle = 'pflegekraft' AND m.status = 'active'
+            GROUP BY m.id, m.vorname, m.nachname, m.standort
+            HAVING COUNT(pz.patient_id) > 20
+            ORDER BY COUNT(pz.patient_id) DESC
+        `);
+
+        res.json({
+            success: true,
+            dashboard: {
+                location_statistics: {
+                    patients: locationStats.rows,
+                    pflegekraefte: pflegekraftStats.rows
+                },
+                recent_transfers: recentTransfers.rows,
+                workload_alerts: workloadAlerts.rows
+            }
+        });
+
+    } catch (error) {
+        console.error('Admin dashboard error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error loading admin dashboard'
+        });
+    }
 });

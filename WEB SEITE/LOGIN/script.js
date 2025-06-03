@@ -117,20 +117,25 @@ async function handleFormSubmission(e) {
       console.log('✅ Login successful for:', data.user.username);
 
       // Store user session
+// Replace this section in your script.js:
+// Store user session (update to include role)
       sessionStorage.setItem('currentUser', JSON.stringify({
         id: data.user.id,
         username: data.user.username,
-        type: data.user.type
+        type: data.user.type,
+        role: data.user.role  // Add this line
       }));
 
-      // Show success state
-      showSuccessState();
-
-      // Redirect after success animation
+// Update the redirect logic:
       setTimeout(() => {
         if (data.user.type === 'mitarbeiter') {
-          console.log('👨‍⚕️ Redirecting to Pflegekraft dashboard...');
-          window.location.href = '/pflegekraft/dashboard.html';
+          if (data.user.role === 'administrator') {
+            console.log('👑 Redirecting to Admin dashboard...');
+            window.location.href = '/admin/index.html';
+          } else {
+            console.log('👨‍⚕️ Redirecting to Pflegekraft dashboard...');
+            window.location.href = '/pflegekraft/dashboard.html';
+          }
         } else if (data.user.type === 'patient') {
           console.log('👤 Redirecting to Patient dashboard...');
           window.location.href = '/patient/';
