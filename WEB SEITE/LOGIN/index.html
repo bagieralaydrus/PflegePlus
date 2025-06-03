@@ -3,40 +3,130 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Login</title>
+  <title>PflegeVision - Anmeldung</title>
   <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+<!-- PARTICLE BACKGROUND CANVAS (from your groupmates) -->
+<canvas id="bg"></canvas>
 
-  <!-- PARTICLE BACKGROUND CANVAS -->
-  <canvas id="bg"></canvas>
-
-  <div class="login-container">
-    <h1>Login</h1>
-    <form id="loginForm">
-      <label for="username">Benutzername</label>
-      <input
-        type="text"
-        id="username"
-        name="username"
-        placeholder="Geben Sie Ihren Benutzernamen ein"
-        required
-      >
-
-      <label for="birthdate">Geburtsdatum</label>
-      <input
-        type="date"
-        id="birthdate"
-        name="birthdate"
-        placeholder="tt.mm.jjjj"
-        required
-      >
-
-      <button type="submit">Einloggen</button>
-    </form>
+<!-- MAIN CONTAINER -->
+<div class="main-container">
+  <!-- BRANDING SECTION -->
+  <div class="branding-section">
+    <div class="logo-container">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z" fill="currentColor"/>
+          <path d="M12 12C14.21 12 16 13.79 16 16C16 18.21 14.21 20 12 20C9.79 20 8 18.21 8 16C8 13.79 9.79 12 12 12Z" fill="currentColor" opacity="0.7"/>
+        </svg>
+      </div>
+      <h1 class="brand-name">PflegeVision</h1>
+      <p class="brand-tagline">Moderne Pflege. Digitale Zukunft.</p>
+    </div>
   </div>
 
-  <script src="script.js"></script>
+  <!-- LOGIN SECTION -->
+  <div class="login-section">
+    <div class="login-container">
+      <div class="login-header">
+        <h2>Willkommen zurück</h2>
+        <p>Melden Sie sich mit Ihren Zugangsdaten an</p>
+      </div>
+
+      <form id="loginForm" class="login-form">
+        <div class="form-group">
+          <label for="username">Benutzername</label>
+          <div class="input-wrapper">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none">
+              <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    placeholder="Ihr Benutzername"
+                    required
+                    autocomplete="username"
+            >
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="birthdate">Geburtsdatum</label>
+          <div class="date-input-group">
+            <div class="input-wrapper">
+              <input
+                      type="number"
+                      id="day"
+                      name="day"
+                      placeholder="Tag"
+                      min="1"
+                      max="31"
+                      required
+              >
+            </div>
+            <div class="input-wrapper">
+              <select id="month" name="month" required>
+                <option value="">Monat</option>
+                <option value="01">Januar</option>
+                <option value="02">Februar</option>
+                <option value="03">März</option>
+                <option value="04">April</option>
+                <option value="05">Mai</option>
+                <option value="06">Juni</option>
+                <option value="07">Juli</option>
+                <option value="08">August</option>
+                <option value="09">September</option>
+                <option value="10">Oktober</option>
+                <option value="11">November</option>
+                <option value="12">Dezember</option>
+              </select>
+            </div>
+            <div class="input-wrapper">
+              <input
+                      type="number"
+                      id="year"
+                      name="year"
+                      placeholder="Jahr"
+                      min="1900"
+                      max="2010"
+                      required
+              >
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="login-button">
+          <span class="button-text">Anmelden</span>
+          <svg class="button-icon" viewBox="0 0 24 24" fill="none">
+            <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </form>
+
+      <div class="login-footer">
+        <div class="security-badge">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 22S8 18 8 13V7L12 5L16 7V13C16 18 12 22 12 22Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Sicher verschlüsselt</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LOADING OVERLAY -->
+<div id="loadingOverlay" class="loading-overlay">
+  <div class="loading-spinner">
+    <div class="spinner"></div>
+    <p>Anmeldung wird verarbeitet...</p>
+  </div>
+</div>
+
+<script src="script.js"></script>
 </body>
 </html>
-
