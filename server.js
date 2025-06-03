@@ -535,16 +535,18 @@ app.get('/api/patients/assigned/:mitarbeiterId', async (req, res) => {
     }
 });
 
-// Add these new endpoints to your existing server.js file
+// Add these endpoints to your existing server.js file
 
-// Patient Dashboard API - shows patient-specific data
+// ========== PATIENT TRANSFER REQUEST ENDPOINTS ==========
+
+// Enhanced patient dashboard endpoint to include current location
 app.get('/api/patient/dashboard/:patientId', async (req, res) => {
     const { patientId } = req.params;
 
     try {
-        // Get patient info
+        // Get patient info including current location
         const patientQuery = `
-            SELECT id, benutzername, vorname, nachname
+            SELECT id, benutzername, vorname, nachname, standort
             FROM patienten
             WHERE id = $1
         `;
@@ -594,6 +596,7 @@ app.get('/api/patient/dashboard/:patientId', async (req, res) => {
             username: patient.vorname || patient.benutzername,
             fullName: patient.vorname ? `${patient.vorname} ${patient.nachname}` : patient.benutzername,
             caregiver: assignedPflegekraft,
+            currentLocation: patient.standort || 'Unbekannt',
             todaysAssignments: assignmentsResult.rows.map(row => ({
                 id: row.id,
                 aufgabe: row.aufgabe,
@@ -607,6 +610,463 @@ app.get('/api/patient/dashboard/:patientId', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Serverfehler beim Laden des Dashboards'
+        });
+    }
+});
+
+// Create a new transfer request
+app.post('/api/patient/transfer-requests', async (req, res) => {
+    const {
+        patientId,
+        currentStandort,
+        requestedStandort,
+        reason,
+        prioritaet,
+        requesterType,
+        requesterId
+    } = req.body;
+
+    try {
+        // Validate required fields
+        if (!patientId || !requestedStandort || !reason) {
+            return res.status(400).json({
+                success: false,
+                message: 'Alle Pflichtfelder müssen ausgefüllt werden'
+            });
+        }
+
+        // Check if patient exists
+        const patientCheck = await pool.query(
+            'SELECT standort FROM patienten WHERE id = $1',
+            [patientId]
+        );
+
+        if (patientCheck.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Patient nicht gefunden'
+            });
+        }
+
+        const actualCurrentStandort = patientCheck.rows[0].standort;
+
+        // Check if requested location is different from current
+        if (actualCurrentStandort === requestedStandort) {
+            return res.status(400).json({
+                success: false,
+                message: 'Der gewünschte Standort ist bereits der aktuelle Standort'
+            });
+        }
+
+        // Check for existing pending requests
+        const existingRequestCheck = await pool.query(
+            `SELECT id FROM transfer_requests 
+             WHERE patient_id = $1 AND status = 'pending'`,
+            [patientId]
+        );
+
+        if (existingRequestCheck.rows.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Es existiert bereits eine ausstehende Anfrage für diesen Patienten'
+            });
+        }
+
+        // Create the transfer request
+        const insertQuery = `
+            INSERT INTO transfer_requests (
+                patient_id, 
+                requester_type, 
+                requester_id, 
+                current_standort, 
+                requested_standort, 
+                reason, 
+                prioritaet, 
+                status,
+                created_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', NOW())
+            RETURNING *
+        `;
+
+        const result = await pool.query(insertQuery, [
+            patientId,
+            requesterType || 'patient',
+            requesterId,
+            actualCurrentStandort,
+            requestedStandort,
+            reason,
+            prioritaet || 'normal'
+        ]);
+
+        // Create notification for administrators
+        const adminNotificationQuery = `
+            INSERT INTO benachrichtigungen (
+                patient_id, 
+                typ, 
+                titel, 
+                nachricht, 
+                prioritaet,
+                erstellt_am
+            )
+            SELECT 
+                $1,
+                'transfer_request',
+                'Neue Transfer-Anfrage',
+                $2,
+                $3,
+                NOW()
+        `;
+
+        const notificationMessage = `${requesterType === 'patient' ? 'Patient' : 'Angehörige'} hat eine Transfer-Anfrage von ${actualCurrentStandort} nach ${requestedStandort} gestellt.`;
+
+        await pool.query(adminNotificationQuery, [
+            patientId,
+            notificationMessage,
+            prioritaet === 'urgent' ? 'hoch' : 'normal'
+        ]);
+
+        res.json({
+            success: true,
+            message: 'Transfer-Anfrage erfolgreich erstellt',
+            request: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Transfer request creation error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler beim Erstellen der Transfer-Anfrage: ' + error.message
+        });
+    }
+});
+
+// Get transfer requests for a specific patient
+app.get('/api/patient/transfer-requests/:patientId', async (req, res) => {
+    const { patientId } = req.params;
+
+    try {
+        const requestsQuery = `
+            SELECT 
+                tr.*,
+                m.vorname || ' ' || m.nachname as processed_by_name
+            FROM transfer_requests tr
+            LEFT JOIN mitarbeiter m ON tr.processed_by = m.id
+            WHERE tr.patient_id = $1
+            ORDER BY tr.created_at DESC
+        `;
+
+        const result = await pool.query(requestsQuery, [patientId]);
+
+        res.json({
+            success: true,
+            requests: result.rows
+        });
+
+    } catch (error) {
+        console.error('Transfer requests loading error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler beim Laden der Transfer-Anfragen'
+        });
+    }
+});
+
+// Cancel a transfer request (only if status is pending)
+app.delete('/api/patient/transfer-requests/:requestId', async (req, res) => {
+    const { requestId } = req.params;
+    const { patientId } = req.body;
+
+    try {
+        // Check if request exists and belongs to patient
+        const requestCheck = await pool.query(
+            `SELECT status FROM transfer_requests 
+             WHERE id = $1 AND patient_id = $2`,
+            [requestId, patientId]
+        );
+
+        if (requestCheck.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Transfer-Anfrage nicht gefunden'
+            });
+        }
+
+        if (requestCheck.rows[0].status !== 'pending') {
+            return res.status(400).json({
+                success: false,
+                message: 'Nur ausstehende Anfragen können storniert werden'
+            });
+        }
+
+        // Update status to cancelled
+        const updateQuery = `
+            UPDATE transfer_requests 
+            SET status = 'cancelled', processed_at = NOW()
+            WHERE id = $1
+            RETURNING *
+        `;
+
+        const result = await pool.query(updateQuery, [requestId]);
+
+        res.json({
+            success: true,
+            message: 'Transfer-Anfrage erfolgreich storniert',
+            request: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Transfer request cancellation error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler beim Stornieren der Transfer-Anfrage'
+        });
+    }
+});
+
+// ========== ADMIN ENDPOINTS FOR TRANSFER REQUESTS ==========
+
+// Get all pending transfer requests for admin
+app.get('/api/admin/transfers/requests', async (req, res) => {
+    try {
+        const requestsQuery = `
+            SELECT 
+                tr.*,
+                p.vorname || ' ' || p.nachname as patient_name,
+                CASE 
+                    WHEN tr.requester_type = 'patient' THEN p.vorname || ' ' || p.nachname
+                    WHEN tr.requester_type = 'angehoerige' THEN a.vorname || ' ' || a.nachname
+                    ELSE 'Unbekannt'
+                END as requester_name
+            FROM transfer_requests tr
+            JOIN patienten p ON tr.patient_id = p.id
+            LEFT JOIN angehoerige a ON tr.requester_type = 'angehoerige' AND tr.requester_id = a.id
+            WHERE tr.status = 'pending'
+            ORDER BY 
+                CASE tr.prioritaet 
+                    WHEN 'urgent' THEN 1 
+                    WHEN 'high' THEN 2 
+                    WHEN 'normal' THEN 3 
+                    ELSE 4 
+                END,
+                tr.created_at ASC
+        `;
+
+        const result = await pool.query(requestsQuery);
+
+        res.json({
+            success: true,
+            requests: result.rows
+        });
+
+    } catch (error) {
+        console.error('Admin transfer requests error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler beim Laden der Transfer-Anfragen'
+        });
+    }
+});
+
+// Approve a transfer request
+app.post('/api/admin/transfers/requests/:requestId/approve', async (req, res) => {
+    const { requestId } = req.params;
+    const { adminId, adminResponse } = req.body;
+
+    try {
+        await pool.query('BEGIN');
+
+        // Get request details
+        const requestQuery = `
+            SELECT * FROM transfer_requests 
+            WHERE id = $1 AND status = 'pending'
+        `;
+        const requestResult = await pool.query(requestQuery, [requestId]);
+
+        if (requestResult.rows.length === 0) {
+            await pool.query('ROLLBACK');
+            return res.status(404).json({
+                success: false,
+                message: 'Transfer-Anfrage nicht gefunden oder bereits bearbeitet'
+            });
+        }
+
+        const request = requestResult.rows[0];
+
+        // Update patient location
+        const updatePatientQuery = `
+            UPDATE patienten 
+            SET standort = $1
+            WHERE id = $2
+        `;
+        await pool.query(updatePatientQuery, [request.requested_standort, request.patient_id]);
+
+        // Log the transfer in standort_verlauf
+        const logTransferQuery = `
+            INSERT INTO standort_verlauf (
+                patient_id, 
+                alter_standort, 
+                neuer_standort, 
+                grund, 
+                geaendert_von, 
+                geaendert_am
+            )
+            VALUES ($1, $2, $3, $4, $5, NOW())
+        `;
+        await pool.query(logTransferQuery, [
+            request.patient_id,
+            request.current_standort,
+            request.requested_standort,
+            `Genehmigter Transfer-Antrag: ${request.reason}`,
+            adminId
+        ]);
+
+        // Update request status
+        const updateRequestQuery = `
+            UPDATE transfer_requests 
+            SET 
+                status = 'approved',
+                admin_response = $1,
+                processed_by = $2,
+                processed_at = NOW(),
+                completed_at = NOW()
+            WHERE id = $3
+            RETURNING *
+        `;
+        const updateResult = await pool.query(updateRequestQuery, [
+            adminResponse || 'Transfer-Anfrage genehmigt und durchgeführt',
+            adminId,
+            requestId
+        ]);
+
+        // Create notification for patient/requester
+        const patientNotificationQuery = `
+            INSERT INTO benachrichtigungen (
+                patient_id,
+                typ,
+                titel,
+                nachricht,
+                prioritaet,
+                erstellt_am
+            )
+            VALUES ($1, 'transfer_approved', 'Transfer genehmigt', $2, 'normal', NOW())
+        `;
+        const notificationMessage = `Ihr Transfer-Antrag von ${request.current_standort} nach ${request.requested_standort} wurde genehmigt und durchgeführt.`;
+        await pool.query(patientNotificationQuery, [request.patient_id, notificationMessage]);
+
+        await pool.query('COMMIT');
+
+        res.json({
+            success: true,
+            message: 'Transfer-Anfrage genehmigt und durchgeführt',
+            request: updateResult.rows[0]
+        });
+
+    } catch (error) {
+        await pool.query('ROLLBACK');
+        console.error('Transfer request approval error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler bei der Genehmigung der Transfer-Anfrage: ' + error.message
+        });
+    }
+});
+
+// Reject a transfer request
+app.post('/api/admin/transfers/requests/:requestId/reject', async (req, res) => {
+    const { requestId } = req.params;
+    const { adminId, rejectionReason } = req.body;
+
+    try {
+        // Get request details
+        const requestQuery = `
+            SELECT * FROM transfer_requests 
+            WHERE id = $1 AND status = 'pending'
+        `;
+        const requestResult = await pool.query(requestQuery, [requestId]);
+
+        if (requestResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Transfer-Anfrage nicht gefunden oder bereits bearbeitet'
+            });
+        }
+
+        const request = requestResult.rows[0];
+
+        // Update request status
+        const updateRequestQuery = `
+            UPDATE transfer_requests 
+            SET 
+                status = 'rejected',
+                admin_response = $1,
+                processed_by = $2,
+                processed_at = NOW()
+            WHERE id = $3
+            RETURNING *
+        `;
+        const result = await pool.query(updateRequestQuery, [
+            rejectionReason || 'Transfer-Anfrage abgelehnt',
+            adminId,
+            requestId
+        ]);
+
+        // Create notification for patient/requester
+        const patientNotificationQuery = `
+            INSERT INTO benachrichtigungen (
+                patient_id,
+                typ,
+                titel,
+                nachricht,
+                prioritaet,
+                erstellt_am
+            )
+            VALUES ($1, 'transfer_rejected', 'Transfer abgelehnt', $2, 'normal', NOW())
+        `;
+        const notificationMessage = `Ihr Transfer-Antrag von ${request.current_standort} nach ${request.requested_standort} wurde abgelehnt. Grund: ${rejectionReason || 'Nicht angegeben'}`;
+        await pool.query(patientNotificationQuery, [request.patient_id, notificationMessage]);
+
+        res.json({
+            success: true,
+            message: 'Transfer-Anfrage abgelehnt',
+            request: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Transfer request rejection error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler bei der Ablehnung der Transfer-Anfrage: ' + error.message
+        });
+    }
+});
+
+// Get transfer request statistics for admin dashboard
+app.get('/api/admin/transfers/statistics', async (req, res) => {
+    try {
+        const statsQuery = `
+            SELECT 
+                COUNT(*) as total_requests,
+                COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_requests,
+                COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved_requests,
+                COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_requests,
+                COUNT(CASE WHEN prioritaet = 'urgent' AND status = 'pending' THEN 1 END) as urgent_pending
+            FROM transfer_requests
+            WHERE created_at >= NOW() - INTERVAL '30 days'
+        `;
+
+        const result = await pool.query(statsQuery);
+
+        res.json({
+            success: true,
+            statistics: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Transfer request statistics error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler beim Laden der Transfer-Statistiken'
         });
     }
 });

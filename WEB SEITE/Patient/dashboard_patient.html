@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dashboard – PflegeVision</title>
   <link rel="stylesheet" href="dashboard_patient.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 <!-- PARTICLE BACKGROUND CANVAS -->
@@ -16,6 +17,7 @@
     <div class="logo">PflegeVision</div>
     <nav class="nav">
       <a href="dashboard_patient.html">Dashboard</a>
+      <a href="#" onclick="showTransferRequestSection()">Standort ändern</a>
       <a href="Information_aendern.html">Information ändern</a>
       <a href="#" onclick="logout()">Abmelden</a>
     </nav>
@@ -24,62 +26,140 @@
 
 <!-- MAIN CONTENT -->
 <main class="main">
-  <section class="dashboard-header">
-    <h2>Willkommen zurück, <span id="username">Patient</span>!</h2>
-    <div class="cards">
-      <div class="card">
-        <h3>Ihr Pfleger</h3>
-        <p id="caregiver">Wird geladen...</p>
+  <!-- DASHBOARD SECTION -->
+  <section id="dashboardSection" class="dashboard-section">
+    <div class="dashboard-header">
+      <h2>Willkommen zurück, <span id="username">Patient</span>!</h2>
+      <div class="cards">
+        <div class="card">
+          <h3>Ihr Pfleger</h3>
+          <p id="caregiver">Wird geladen...</p>
+        </div>
+        <div class="card">
+          <h3>Heutige Aufgaben</h3>
+          <p id="todayTaskCount">—</p>
+        </div>
+        <div class="card">
+          <h3>Aktueller Standort</h3>
+          <p id="currentLocation">Wird geladen...</p>
+        </div>
       </div>
-      <div class="card">
-        <h3>Heutige Aufgaben</h3>
-        <p id="todayTaskCount">—</p>
+    </div>
+
+    <div class="table-section">
+      <h3>Heutige Aktivitäten</h3>
+      <div class="table-wrapper">
+        <table id="assignmentsTable">
+          <thead>
+          <tr>
+            <th>Aufgabe</th>
+            <th>Zeit</th>
+            <th>Status</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr>
+            <td colspan="3" style="text-align: center; color: #666;">
+              Daten werden geladen...
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Recent Activity History -->
+    <div class="table-section" style="margin-top: 2rem;">
+      <h3>Vergangene Aktivitäten (letzte 7 Tage)</h3>
+      <div class="table-wrapper">
+        <table id="historyTable" style="display: none;">
+          <thead>
+          <tr>
+            <th>Datum</th>
+            <th>Aufgabe</th>
+            <th>Zeit</th>
+            <th>Status</th>
+            <th>Durchgeführt von</th>
+          </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <button id="showHistoryBtn" class="btn-secondary">Vergangene Aktivitäten anzeigen</button>
       </div>
     </div>
   </section>
 
-  <section class="table-section">
-    <h3>Heutige Aktivitäten</h3>
-    <div class="table-wrapper">
-      <table id="assignmentsTable">
-        <thead>
-        <tr>
-          <th>Aufgabe</th>
-          <th>Zeit</th>
-          <th>Status</th>
-        </tr>
-        </thead>
-        <tbody>
-        <!-- JavaScript wird hier die Zeilen einfügen -->
-        <tr>
-          <td colspan="3" style="text-align: center; color: #666;">
-            Daten werden geladen...
-          </td>
-        </tr>
-        </tbody>
-      </table>
+  <!-- TRANSFER REQUEST SECTION -->
+  <section id="transferRequestSection" class="transfer-request-section" style="display: none;">
+    <div class="section-header">
+      <h2>🏥 Standortwechsel beantragen</h2>
+      <button class="btn-secondary" onclick="showDashboardSection()">Zurück zum Dashboard</button>
     </div>
-  </section>
 
-  <!-- Optional: Show recent activity history -->
-  <section class="table-section" style="margin-top: 2rem;">
-    <h3>Vergangene Aktivitäten (letzte 7 Tage)</h3>
-    <div class="table-wrapper">
-      <table id="historyTable" style="display: none;">
-        <thead>
-        <tr>
-          <th>Datum</th>
-          <th>Aufgabe</th>
-          <th>Zeit</th>
-          <th>Status</th>
-          <th>Durchgeführt von</th>
-        </tr>
-        </thead>
-        <tbody>
-        <!-- JavaScript fills this -->
-        </tbody>
-      </table>
-      <button id="showHistoryBtn" class="btn-secondary">Vergangene Aktivitäten anzeigen</button>
+    <!-- Transfer Request Form -->
+    <div class="modern-card">
+      <h3>Neue Anfrage erstellen</h3>
+      <form id="transferRequestForm" class="modern-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="currentLocationDisplay">Aktueller Standort:</label>
+            <input type="text" id="currentLocationDisplay" readonly disabled>
+          </div>
+          <div class="form-group">
+            <label for="requestedLocation">Gewünschter Standort:</label>
+            <select id="requestedLocation" required>
+              <option value="">-- Standort wählen --</option>
+              <option value="Krefeld">Krefeld</option>
+              <option value="Mönchengladbach">Mönchengladbach</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="transferReason">Grund für den Standortwechsel:</label>
+          <textarea id="transferReason" placeholder="Bitte erläutern Sie den Grund für Ihren Wunsch nach einem Standortwechsel..." required rows="4"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="priority">Dringlichkeit:</label>
+          <select id="priority" required>
+            <option value="normal">Normal</option>
+            <option value="high">Hoch</option>
+            <option value="urgent">Dringend</option>
+          </select>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" onclick="showDashboardSection()">Abbrechen</button>
+          <button type="submit" class="btn-primary">Anfrage senden</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Current Requests Status -->
+    <div class="modern-card">
+      <h3>📋 Ihre aktuellen Anfragen</h3>
+      <div class="table-wrapper">
+        <table id="requestsTable">
+          <thead>
+          <tr>
+            <th>Gewünschter Standort</th>
+            <th>Grund</th>
+            <th>Dringlichkeit</th>
+            <th>Status</th>
+            <th>Erstellt am</th>
+            <th>Antwort</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr>
+            <td colspan="6" style="text-align: center; color: #666;">
+              Lade Anfragen...
+            </td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </section>
 </main>
@@ -89,12 +169,15 @@
   <p>&copy; 2025 PflegeVision. Alle Rechte vorbehalten.</p>
 </footer>
 
+<!-- NOTIFICATION AREA -->
+<div id="notificationArea"></div>
+
 <script>
-  // Updated patient dashboard script with the new functionality
   document.addEventListener('DOMContentLoaded', () => {
     const userEl = document.getElementById('username');
     const caregiverEl = document.getElementById('caregiver');
     const taskCountEl = document.getElementById('todayTaskCount');
+    const currentLocationEl = document.getElementById('currentLocation');
     const tableBody = document.querySelector('#assignmentsTable tbody');
     const historyTable = document.getElementById('historyTable');
     const historyTableBody = document.querySelector('#historyTable tbody');
@@ -103,6 +186,7 @@
     // Get current user from sessionStorage
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
     const patientId = currentUser.id;
+    let patientData = {};
 
     if (!patientId) {
       alert('Benutzer nicht gefunden. Bitte loggen Sie sich erneut ein.');
@@ -110,7 +194,25 @@
       return;
     }
 
-    // Function to load patient dashboard data
+    // ========== NAVIGATION FUNCTIONS ==========
+    window.showTransferRequestSection = function() {
+      hideAllSections();
+      document.getElementById('transferRequestSection').style.display = 'block';
+      loadTransferRequests();
+      updateTransferForm();
+    };
+
+    window.showDashboardSection = function() {
+      hideAllSections();
+      document.getElementById('dashboardSection').style.display = 'block';
+    };
+
+    function hideAllSections() {
+      document.getElementById('dashboardSection').style.display = 'none';
+      document.getElementById('transferRequestSection').style.display = 'none';
+    }
+
+    // ========== DASHBOARD DATA LOADING ==========
     function loadDashboardData() {
       fetch(`/api/patient/dashboard/${patientId}`)
               .then(res => {
@@ -121,9 +223,11 @@
               })
               .then(data => {
                 if (data.success) {
+                  patientData = data; // Store for transfer form
                   userEl.textContent = data.username;
                   caregiverEl.textContent = data.caregiver;
                   taskCountEl.textContent = data.todaysAssignments.length;
+                  currentLocationEl.textContent = data.currentLocation || 'Unbekannt';
 
                   // Clear existing table rows
                   tableBody.innerHTML = '';
@@ -132,19 +236,19 @@
                   if (data.todaysAssignments.length === 0) {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                  <td colspan="3" style="text-align: center; color: #666;">
-                    Keine Aufgaben für heute geplant
-                  </td>
-                `;
+              <td colspan="3" style="text-align: center; color: #666;">
+                Keine Aufgaben für heute geplant
+              </td>
+            `;
                     tableBody.appendChild(tr);
                   } else {
                     data.todaysAssignments.forEach(a => {
                       const tr = document.createElement('tr');
                       tr.innerHTML = `
-                    <td>${a.aufgabe}</td>
-                    <td>${a.zeit}</td>
-                    <td><span class="status ${a.status.toLowerCase()}">${a.status}</span></td>
-                  `;
+                <td>${a.aufgabe}</td>
+                <td>${a.zeit}</td>
+                <td><span class="status ${a.status.toLowerCase()}">${a.status}</span></td>
+              `;
                       tableBody.appendChild(tr);
                     });
                   }
@@ -157,18 +261,159 @@
                 userEl.textContent = currentUser.username || 'Unbekannt';
                 caregiverEl.textContent = 'Nicht verfügbar';
                 taskCountEl.textContent = '—';
+                currentLocationEl.textContent = 'Unbekannt';
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-              <td colspan="3" style="text-align: center; color: #666;">
-                Fehler beim Laden der Daten. Bitte versuchen Sie es später erneut.
-              </td>
-            `;
+          <td colspan="3" style="text-align: center; color: #666;">
+            Fehler beim Laden der Daten. Bitte versuchen Sie es später erneut.
+          </td>
+        `;
                 tableBody.appendChild(tr);
               });
     }
 
-    // Load assignment history
+    // ========== TRANSFER REQUEST FUNCTIONALITY ==========
+    function updateTransferForm() {
+      const currentLocationDisplay = document.getElementById('currentLocationDisplay');
+      const requestedLocationSelect = document.getElementById('requestedLocation');
+
+      // Set current location in form
+      currentLocationDisplay.value = patientData.currentLocation || 'Unbekannt';
+
+      // Remove current location from available options
+      const currentLocation = patientData.currentLocation;
+      Array.from(requestedLocationSelect.options).forEach(option => {
+        if (option.value === currentLocation) {
+          option.style.display = 'none';
+        } else {
+          option.style.display = 'block';
+        }
+      });
+    }
+
+    function loadTransferRequests() {
+      fetch(`/api/patient/transfer-requests/${patientId}`)
+              .then(res => res.json())
+              .then(data => {
+                if (data.success) {
+                  updateRequestsTable(data.requests);
+                }
+              })
+              .catch(error => {
+                console.error('Transfer requests loading error:', error);
+              });
+    }
+
+    function updateRequestsTable(requests) {
+      const tbody = document.querySelector('#requestsTable tbody');
+
+      if (requests.length === 0) {
+        tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; color: #666;">
+            Keine Anfragen vorhanden
+          </td>
+        </tr>
+      `;
+        return;
+      }
+
+      tbody.innerHTML = requests.map(request => {
+        const statusClass = getStatusClass(request.status);
+        const priorityClass = getPriorityClass(request.priority);
+
+        return `
+        <tr>
+          <td>${request.requested_standort}</td>
+          <td>${request.reason.substring(0, 50)}${request.reason.length > 50 ? '...' : ''}</td>
+          <td><span class="priority ${priorityClass}">${getPriorityText(request.priority)}</span></td>
+          <td><span class="status ${statusClass}">${getStatusText(request.status)}</span></td>
+          <td>${new Date(request.created_at).toLocaleDateString('de-DE')}</td>
+          <td>${request.admin_response || 'Ausstehend'}</td>
+        </tr>
+      `;
+      }).join('');
+    }
+
+    function getStatusClass(status) {
+      const classes = {
+        'pending': 'ausstehend',
+        'approved': 'approved',
+        'rejected': 'rejected',
+        'completed': 'abgeschlossen'
+      };
+      return classes[status] || 'ausstehend';
+    }
+
+    function getPriorityClass(priority) {
+      const classes = {
+        'normal': 'normal',
+        'high': 'high',
+        'urgent': 'urgent'
+      };
+      return classes[priority] || 'normal';
+    }
+
+    function getStatusText(status) {
+      const texts = {
+        'pending': 'Ausstehend',
+        'approved': 'Genehmigt',
+        'rejected': 'Abgelehnt',
+        'completed': 'Abgeschlossen'
+      };
+      return texts[status] || 'Unbekannt';
+    }
+
+    function getPriorityText(priority) {
+      const texts = {
+        'normal': 'Normal',
+        'high': 'Hoch',
+        'urgent': 'Dringend'
+      };
+      return texts[priority] || 'Normal';
+    }
+
+    // ========== FORM SUBMISSION ==========
+    document.getElementById('transferRequestForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const formData = new FormData(e.target);
+      const requestData = {
+        patientId: patientId,
+        currentStandort: patientData.currentLocation,
+        requestedStandort: formData.get('requestedLocation'),
+        reason: formData.get('transferReason'),
+        priority: formData.get('priority'),
+        requesterType: 'patient', // Could be 'angehoerige' if implemented
+        requesterId: patientId
+      };
+
+      try {
+        const response = await fetch('/api/patient/transfer-requests', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestData)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          showNotification('Transfer-Anfrage erfolgreich gesendet', 'success');
+          document.getElementById('transferRequestForm').reset();
+          loadTransferRequests(); // Refresh the requests table
+        } else {
+          throw new Error(result.message || 'Anfrage konnte nicht gesendet werden');
+        }
+      } catch (error) {
+        console.error('Transfer request error:', error);
+        showNotification('Fehler beim Senden der Anfrage: ' + error.message, 'error');
+      }
+    });
+
+    // ========== HISTORY FUNCTIONALITY ==========
     function loadAssignmentHistory() {
       fetch(`/api/patient/assignments/history/${patientId}?days=7`)
               .then(res => res.json())
@@ -179,21 +424,21 @@
                   if (data.assignments.length === 0) {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                  <td colspan="5" style="text-align: center; color: #666;">
-                    Keine vergangenen Aktivitäten gefunden
-                  </td>
-                `;
+              <td colspan="5" style="text-align: center; color: #666;">
+                Keine vergangenen Aktivitäten gefunden
+              </td>
+            `;
                     historyTableBody.appendChild(tr);
                   } else {
                     data.assignments.forEach(a => {
                       const tr = document.createElement('tr');
                       tr.innerHTML = `
-                    <td>${a.datum}</td>
-                    <td>${a.aufgabe}</td>
-                    <td>${a.zeit}</td>
-                    <td><span class="status ${a.status.toLowerCase()}">${a.status}</span></td>
-                    <td>${a.pflegekraft}</td>
-                  `;
+                <td>${a.datum}</td>
+                <td>${a.aufgabe}</td>
+                <td>${a.zeit}</td>
+                <td><span class="status ${a.status.toLowerCase()}">${a.status}</span></td>
+                <td>${a.pflegekraft}</td>
+              `;
                       historyTableBody.appendChild(tr);
                     });
                   }
@@ -204,7 +449,7 @@
               })
               .catch(error => {
                 console.error('History loading error:', error);
-                alert('Fehler beim Laden der Aktivitäten-Historie');
+                showNotification('Fehler beim Laden der Aktivitäten-Historie', 'error');
               });
     }
 
@@ -218,13 +463,29 @@
       }
     });
 
-    // Load dashboard data initially
-    loadDashboardData();
+    // ========== NOTIFICATION SYSTEM ==========
+    function showNotification(message, type = 'info') {
+      const notification = document.createElement('div');
+      notification.className = `notification ${type}`;
+      notification.innerHTML = `
+      <div class="notification-content">
+        <span class="notification-text">${message}</span>
+        <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+      </div>
+    `;
 
-    // Auto-refresh every 30 seconds to show new assignments
-    setInterval(loadDashboardData, 30000);
+      const notificationArea = document.getElementById('notificationArea');
+      notificationArea.appendChild(notification);
 
-    // Logout function
+      // Auto remove after 5 seconds
+      setTimeout(() => {
+        if (notification.parentElement) {
+          notification.remove();
+        }
+      }, 5000);
+    }
+
+    // ========== LOGOUT FUNCTION ==========
     window.logout = function() {
       if (confirm('Möchten Sie sich wirklich abmelden?')) {
         sessionStorage.removeItem('currentUser');
@@ -232,7 +493,13 @@
       }
     };
 
-    // Particle background code (keeping existing code)
+    // ========== INITIALIZATION ==========
+    loadDashboardData();
+
+    // Auto-refresh every 30 seconds to show new assignments
+    setInterval(loadDashboardData, 30000);
+
+    // ========== PARTICLE BACKGROUND ==========
     const canvas = document.getElementById('bg');
     const ctx = canvas.getContext('2d');
     let particles = [];
@@ -290,19 +557,184 @@
 </script>
 
 <style>
-  .btn-secondary {
-    background: #6c757d;
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-    margin: 1rem 0;
-    transition: background 0.2s ease;
+  /* Additional styles for transfer request functionality */
+  .transfer-request-section {
+    display: block;
   }
 
-  .btn-secondary:hover {
-    background: #5a6268;
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+  }
+
+  .section-header h2 {
+    color: #333;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .form-group label {
+    font-weight: 500;
+    color: #555;
+    font-size: 0.9rem;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .form-group input:focus,
+  .form-group select:focus,
+  .form-group textarea:focus {
+    border-color: #2d7ff9;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(45, 127, 249, 0.1);
+  }
+
+  .form-group input:disabled {
+    background-color: #f8f9fa;
+    color: #6c757d;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+  }
+
+  .priority.high {
+    background: #fff3cd;
+    color: #856404;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+  }
+
+  .priority.urgent {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+  }
+
+  .priority.normal {
+    background: #d1ecf1;
+    color: #0c5460;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+  }
+
+  .status.approved {
+    background: #d4edda;
+    color: #155724;
+  }
+
+  .status.rejected {
+    background: #f8d7da;
+    color: #721c24;
+  }
+
+  /* Notification styles */
+  #notificationArea {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 400px;
+  }
+
+  .notification {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border-left: 4px solid #2d7ff9;
+    animation: slideInRight 0.3s ease-out;
+  }
+
+  .notification.success {
+    border-left-color: #28a745;
+  }
+
+  .notification.error {
+    border-left-color: #dc3545;
+  }
+
+  .notification-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .notification-close {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: #6c757d;
+  }
+
+  .notification-close:hover {
+    color: #495057;
+  }
+
+  @keyframes slideInRight {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .form-row {
+      grid-template-columns: 1fr;
+    }
+
+    .section-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+
+    .form-actions {
+      flex-direction: column;
+    }
   }
 </style>
 </body>
