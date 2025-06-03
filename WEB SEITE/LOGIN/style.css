@@ -29,7 +29,7 @@
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 
-  /* Modern Spacing & Sizing */
+  /* Responsive Spacing & Sizing */
   --radius: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
@@ -39,13 +39,20 @@
   --gradient-primary: linear-gradient(135deg, #0066ff 0%, #3385ff 100%);
   --gradient-surface: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
   --gradient-bg: linear-gradient(135deg, #0d1b2a 0%, #1e3a8a 50%, #1e40af 100%);
+
+  /* Responsive Variables */
+  --container-padding: 2rem;
+  --form-padding: 2.8rem;
+  --header-size: 2rem;
+  --input-padding: 1.25rem;
+  --button-padding: 1.25rem 2rem;
 }
 
 html, body {
   height: 100%;
   font-family: var(--font-family);
   background: #0d1b2a;
-  overflow: hidden; /* Keep this to prevent scrolling */
+  overflow-x: hidden; /* Prevent horizontal scroll */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   margin: 0;
@@ -54,7 +61,7 @@ html, body {
 
 /* ========== PARTICLE CANVAS - BULLETPROOF VERSION ========== */
 #bg {
-  position: absolute;
+  position: fixed; /* Changed from absolute to fixed */
   top: 0;
   left: 0;
   width: 100%;
@@ -87,6 +94,7 @@ html, body {
 .loading-spinner {
   text-align: center;
   color: white;
+  padding: 1rem;
 }
 
 .spinner {
@@ -104,29 +112,29 @@ html, body {
   100% { transform: rotate(360deg); }
 }
 
-/* ========== MAIN LAYOUT - FIXED CENTERING ========== */
+/* ========== MAIN LAYOUT - ENHANCED RESPONSIVE ========== */
 .main-container {
   position: relative;
   display: flex;
-  height: 100vh; /* Use viewport height instead of min-height */
+  min-height: 100vh;
   z-index: 10;
 }
 
-/* ========== LEFT SIDE - LESS BLURRY BRANDING ========== */
+/* ========== LEFT SIDE - RESPONSIVE BRANDING ========== */
 .branding-section {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 3rem;
-  background: rgba(255, 255, 255, 0.08); /* Increased opacity - was 0.03 */
-  backdrop-filter: blur(6px); /* Reduced blur - was 10px */
-  border-right: 1px solid rgba(255, 255, 255, 0.15); /* Slightly more visible border */
+  padding: var(--container-padding);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(6px);
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
   position: relative;
   overflow: hidden;
+  min-height: 50vh; /* Ensure minimum height on mobile */
 }
 
-/* Less blurry gradient overlay */
 .branding-section::before {
   content: '';
   position: absolute;
@@ -134,7 +142,7 @@ html, body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, transparent 50%, rgba(0, 102, 255, 0.08) 100%); /* Increased opacity */
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, transparent 50%, rgba(0, 102, 255, 0.08) 100%);
   pointer-events: none;
 }
 
@@ -143,11 +151,13 @@ html, body {
   color: white;
   position: relative;
   z-index: 2;
+  max-width: 400px;
+  width: 100%;
 }
 
 .logo-icon {
-  width: 88px;
-  height: 88px;
+  width: clamp(60px, 15vw, 88px); /* Responsive sizing */
+  height: clamp(60px, 15vw, 88px);
   margin: 0 auto 2rem;
   background: rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-xl);
@@ -166,14 +176,14 @@ html, body {
 }
 
 .logo-icon svg {
-  width: 44px;
-  height: 44px;
+  width: clamp(30px, 8vw, 44px);
+  height: clamp(30px, 8vw, 44px);
   color: white;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
 .brand-name {
-  font-size: 3.5rem;
+  font-size: clamp(2rem, 6vw, 3.5rem); /* Responsive font size */
   font-weight: 700;
   margin-bottom: 1rem;
   background: linear-gradient(135deg, #ffffff 0%, #e0f2fe 100%);
@@ -182,75 +192,80 @@ html, body {
   background-clip: text;
   text-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
 .brand-tagline {
-  font-size: 1.25rem;
+  font-size: clamp(1rem, 3vw, 1.25rem);
   font-weight: 400;
   opacity: 0.9;
   letter-spacing: 0.5px;
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
   line-height: 1.6;
 }
 
-/* Modern Feature List */
+/* Enhanced Responsive Feature List */
 .brand-features {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 1rem;
   text-align: left;
-  max-width: 280px;
+  max-width: 320px;
   margin: 0 auto;
+  width: 100%;
 }
 
 .feature-item {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-size: 0.9rem;
+  font-size: clamp(0.8rem, 2.5vw, 0.9rem);
   opacity: 0.8;
   transition: all 0.3s ease;
-  padding: 0.5rem;
+  padding: 0.75rem 1rem;
   border-radius: var(--radius);
   backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .feature-item:hover {
   opacity: 1;
   background: rgba(255, 255, 255, 0.05);
   transform: translateX(4px);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .feature-item svg {
   color: var(--accent-green);
   flex-shrink: 0;
+  width: 16px;
+  height: 16px;
 }
 
-/* ========== RIGHT SIDE - PROPERLY CENTERED LOGIN FORM ========== */
+/* ========== RIGHT SIDE - RESPONSIVE LOGIN FORM ========== */
 .login-section {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem; /* Back to original padding */
+  padding: var(--container-padding);
   position: relative;
+  min-height: 50vh;
 }
 
 .login-container {
   width: 100%;
-  max-width: 420px; /* Keep the smaller size */
+  max-width: min(420px, 90vw); /* Responsive max-width */
   background: var(--gradient-surface);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-2xl);
-  padding: 2.8rem; /* Slightly reduced but not too much */
+  padding: var(--form-padding);
   border: 1px solid rgba(255, 255, 255, 0.2);
   position: relative;
   backdrop-filter: blur(20px);
   animation: slideInUp 0.8s ease-out;
-  /* Removed the problematic margins that caused scrolling */
 }
 
-/* Subtle inner glow */
 .login-container::before {
   content: '';
   position: absolute;
@@ -271,7 +286,7 @@ html, body {
 }
 
 .login-header h2 {
-  font-size: 2rem;
+  font-size: var(--header-size);
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 0.5rem;
@@ -280,15 +295,15 @@ html, body {
 
 .login-header p {
   color: var(--text-secondary);
-  font-size: 1rem;
+  font-size: clamp(0.9rem, 2.5vw, 1rem);
   font-weight: 400;
 }
 
-/* ========== FORM STYLES - TIGHTER SPACING ========== */
+/* ========== ENHANCED RESPONSIVE FORM STYLES ========== */
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem; /* Reduced gap - was 1.75rem */
+  gap: 1.5rem;
   position: relative;
   z-index: 2;
 }
@@ -308,7 +323,7 @@ html, body {
 .form-group label {
   font-weight: 500;
   color: var(--text-primary);
-  font-size: 0.95rem;
+  font-size: clamp(0.9rem, 2.5vw, 0.95rem);
   letter-spacing: 0.01em;
 }
 
@@ -331,10 +346,10 @@ html, body {
 .input-wrapper input,
 .input-wrapper select {
   width: 100%;
-  padding: 1.25rem 1.25rem 1.25rem 3.25rem;
+  padding: var(--input-padding) var(--input-padding) var(--input-padding) 3.25rem;
   border: 2px solid var(--border);
   border-radius: var(--radius-lg);
-  font-size: 1rem;
+  font-size: clamp(0.9rem, 2.5vw, 1rem);
   font-family: var(--font-family);
   background: var(--background);
   color: var(--text-primary);
@@ -344,16 +359,19 @@ html, body {
 }
 
 .input-wrapper select {
-  padding-left: 1.25rem;
+  padding-left: var(--input-padding);
   cursor: pointer;
   background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
   background-repeat: no-repeat;
-  background-position: right 1.25rem center;
+  background-position: right var(--input-padding) center;
   background-size: 18px;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
 }
 
 .input-wrapper input[type="number"] {
-  padding-left: 1.25rem;
+  padding-left: var(--input-padding);
   -moz-appearance: textfield;
 }
 
@@ -376,36 +394,34 @@ html, body {
   transform: scale(1.1);
 }
 
-/* ========== DATE INPUT GROUP - MODERN STYLED ========== */
+/* ========== ENHANCED RESPONSIVE DATE INPUT GROUP ========== */
 .date-input-group {
   display: grid;
   grid-template-columns: 1fr 2fr 1fr;
   gap: 0.75rem;
 }
 
-/* Special styling for date inputs */
 .date-input-group input,
 .date-input-group select {
   width: 100%;
-  padding: 1rem;
+  padding: var(--input-padding);
   border: 2px solid var(--border);
   border-radius: var(--radius-lg);
-  font-size: 0.95rem;
+  font-size: clamp(0.85rem, 2.5vw, 0.95rem);
   font-family: var(--font-family);
   background: var(--background);
   color: var(--text-primary);
   transition: all 0.3s ease;
   box-shadow: var(--shadow-sm);
   font-weight: 400;
-  text-align: center; /* Center the numbers/text */
+  text-align: center;
 }
 
-/* Modern select dropdown styling */
 .date-input-group select {
   cursor: pointer;
-  text-align: left; /* Left align the month text */
+  text-align: left;
   padding-left: 1rem;
-  padding-right: 2.5rem; /* Space for arrow */
+  padding-right: 2.5rem;
   background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
   background-repeat: no-repeat;
   background-position: right 1rem center;
@@ -415,7 +431,6 @@ html, body {
   appearance: none;
 }
 
-/* Remove ugly default number input arrows */
 .date-input-group input[type="number"] {
   -moz-appearance: textfield;
 }
@@ -426,7 +441,6 @@ html, body {
   margin: 0;
 }
 
-/* Focus states for date inputs */
 .date-input-group input:focus,
 .date-input-group select:focus {
   outline: none;
@@ -435,21 +449,19 @@ html, body {
   transform: translateY(-1px);
 }
 
-/* Hover states for better UX */
 .date-input-group input:hover,
 .date-input-group select:hover {
   border-color: rgba(0, 102, 255, 0.3);
   box-shadow: var(--shadow);
 }
 
-/* Placeholder styling for date inputs */
 .date-input-group input::placeholder {
   color: var(--text-light);
   font-weight: 400;
   text-align: center;
+  font-size: clamp(0.8rem, 2vw, 0.9rem);
 }
 
-/* Modern styling for select options */
 .date-input-group select option {
   padding: 0.75rem;
   background: white;
@@ -457,19 +469,19 @@ html, body {
   border: none;
 }
 
-/* ========== BUTTON - MODERN ENTERPRISE STYLE ========== */
+/* ========== RESPONSIVE BUTTON ========== */
 .login-button {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
   width: 100%;
-  padding: 1.25rem 2rem;
+  padding: var(--button-padding);
   background: var(--gradient-primary);
   color: white;
   border: none;
   border-radius: var(--radius-lg);
-  font-size: 1rem;
+  font-size: clamp(0.9rem, 2.5vw, 1rem);
   font-weight: 500;
   font-family: var(--font-family);
   cursor: pointer;
@@ -478,6 +490,7 @@ html, body {
   margin-top: 1.5rem;
   position: relative;
   overflow: hidden;
+  min-height: 52px; /* Ensure good touch target */
 }
 
 .login-button::before {
@@ -516,16 +529,17 @@ html, body {
   width: 20px;
   height: 20px;
   transition: transform 0.3s ease;
+  flex-shrink: 0;
 }
 
 .login-button:hover .button-icon {
   transform: translateX(4px);
 }
 
-/* ========== FOOTER - TRUST INDICATORS ========== */
+/* ========== RESPONSIVE FOOTER ========== */
 .login-footer {
-  margin-top: 2.5rem;
-  padding-top: 2rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
   border-top: 1px solid var(--border);
   text-align: center;
   position: relative;
@@ -537,7 +551,7 @@ html, body {
   align-items: center;
   gap: 0.5rem;
   color: var(--text-light);
-  font-size: 0.875rem;
+  font-size: clamp(0.8rem, 2vw, 0.875rem);
   font-weight: 400;
   padding: 0.5rem 1rem;
   background: rgba(16, 185, 129, 0.1);
@@ -549,6 +563,7 @@ html, body {
   width: 16px;
   height: 16px;
   color: var(--accent-green);
+  flex-shrink: 0;
 }
 
 /* ========== ENHANCED FORM STATES ========== */
@@ -564,6 +579,17 @@ html, body {
   border-color: var(--success);
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
   background: rgba(16, 185, 129, 0.02);
+}
+
+/* Error message responsive styling */
+.error-message {
+  color: #ef4444 !important;
+  font-size: clamp(0.8rem, 2vw, 0.85rem) !important;
+  margin-top: 0.5rem !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  font-weight: 500 !important;
 }
 
 /* ========== ANIMATIONS ========== */
@@ -595,233 +621,413 @@ html, body {
   20%, 40%, 60%, 80% { transform: translateX(4px); }
 }
 
-/* ========== RESPONSIVE DESIGN - MOBILE FIRST ========== */
-/* ========== CUSTOM RESPONSIVE EXTENSIONS ========== */
+/* ========== ENHANCED RESPONSIVE DESIGN ========== */
 
-/* =================== PROFESSIONAL RESPONSIVE LAYOUT =================== */
+/* Large Tablets and Small Desktops */
+@media (max-width: 1200px) {
+  :root {
+    --container-padding: 1.5rem;
+    --form-padding: 2.5rem;
+  }
 
-/* =================== PROFESSIONAL MOBILE-FIRST LAYOUT =================== */
-
-/* ========= FINAL CLEAN RESPONSIVE ========== */
-
-/* Mobile-first: ≤768px (default) */
-.main-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 1rem;
-  width: 100%;
-  height: auto;
-}
-
-.branding-section {
-  width: 100%;
-  text-align: center;
-  order: 2;
-  padding: 1rem;
-}
-
-.login-section {
-  width: 100%;
-  order: 1;
-  display: flex;
-  justify-content: center;
-  padding: 1rem;
-}
-
-.login-container {
-  width: 100%;
-  max-width: 350px;
-  padding: 1.5rem;
-}
-
-/* Desktop: ≥1200px */
-@media (min-width: 1200px) {
   .main-container {
     flex-direction: row;
-    align-items: stretch;
-    justify-content: center;
-    max-width: 1400px;
-    margin: 0 auto;
-    height: 100vh;
   }
 
-  .branding-section {
-    flex: 1;
-    order: 1;
-    display: flex;
+  .login-container {
+    max-width: 400px;
+  }
+}
+
+/* Tablets */
+@media (max-width: 1024px) {
+  :root {
+    --container-padding: 1.5rem;
+    --form-padding: 2.2rem;
+    --header-size: 1.8rem;
+  }
+
+  .main-container {
     flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-    padding: 4rem;
-    text-align: left;
+    min-height: 100vh;
+  }
+
+  .branding-section {
+    flex: none;
+    min-height: 40vh;
+    padding: 2rem 1.5rem;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   }
 
   .login-section {
     flex: 1;
-    order: 2;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 4rem;
-  }
-
-  .login-container {
-    max-width: 450px;
-    padding: 3rem;
-  }
-}
-
-/* ====== DESKTOP (>1200px) ====== */
-@media (min-width: 1200px) {
-  .main-container {
-    display: flex;
-    flex-direction: row;
-    max-width: 1400px;
-    margin: 0 auto;
-    height: 100vh;
-  }
-
-  .branding-section {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: flex-start;
-    padding: 4rem;
-    text-align: left;
-  }
-
-  .login-section {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 4rem;
-  }
-
-  .login-container {
-    max-width: 480px;
-    width: 100%;
-    padding: 3rem;
-  }
-}
-
-/* ====== MOBILE & TABLET (≤1200px) → COMPLETELY DIFFERENT LAYOUT ====== */
-@media (max-width: 1199px) {
-  .main-container {
-    display: block;
-    width: 100%;
-    padding: 1rem;
-    height: auto;
-  }
-
-  .branding-section {
-    width: 100%;
-    text-align: center;
-    margin-bottom: 1rem;
-    padding: 1rem;
-  }
-
-  .branding-section .brand-features {
-    display: none; 
-  }
-
-  .login-section {
-    width: 100%;
-    display: block;
-    padding: 1rem;
-  }
-
-  .login-container {
-    max-width: 100%;
-    width: 100%;
-    padding: 2rem 1rem;
-    margin: 0 auto;
-    border-radius: 12px;
-    box-shadow: var(--shadow-lg);
-  }
-
-  .login-header h2 {
-    font-size: 1.8rem;
-  }
-}
-
-/* EXTENDED ULTRA-WIDE DESKTOP (≥1400px and up) */
-@media (min-width: 1400px) {
-  .main-container {
-    max-width: 100%;
-    width: 100%;
-  }
-
-  .branding-section {
-    justify-content: flex-start; 
-    padding-left: 6rem; 
-  }
-
-  .login-section {
-    justify-content: flex-end; 
-    padding-right: 6rem; 
-  }
-}
-
-/* ==== ULTRA SMALL SCREENS (≤430px) ==== */
-@media (max-width: 430px) {
-  .main-container {
-    padding: 0.5rem;
-  }
-
-  .branding-section {
-    padding: 0.5rem;
-  }
-
-  .login-section {
-    padding: 0.5rem;
-  }
-
-  .login-container {
-    padding: 1rem;
-    max-width: 100%;
+    min-height: 60vh;
+    padding: 1.5rem;
   }
 
   .brand-name {
-    font-size: 1.5rem;
+    margin-bottom: 0.75rem;
   }
 
   .brand-tagline {
-    font-size: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .brand-features {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+    max-width: 600px;
+  }
+
+  .feature-item {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+  }
+}
+
+/* Mobile Landscape and Small Tablets */
+@media (max-width: 768px) {
+  :root {
+    --container-padding: 1rem;
+    --form-padding: 2rem;
+    --header-size: 1.6rem;
+    --input-padding: 1rem;
+    --button-padding: 1rem 1.5rem;
+  }
+
+  body {
+    overflow-y: auto; /* Allow vertical scrolling on mobile */
+  }
+
+  .main-container {
+    min-height: 100vh;
+  }
+
+  .branding-section {
+    min-height: 35vh;
+    padding: 1.5rem 1rem;
+  }
+
+  .login-section {
+    min-height: 65vh;
+    padding: 1rem;
+  }
+
+  .login-container {
+    padding: var(--form-padding);
+    margin: 0.5rem;
+    border-radius: var(--radius-lg);
+    max-width: calc(100vw - 2rem);
+  }
+
+  .date-input-group {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .brand-features {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    max-width: 280px;
+  }
+
+  .feature-item {
+    padding: 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .login-header {
+    margin-bottom: 1.5rem;
+  }
+
+  .login-form {
+    gap: 1.25rem;
+  }
+
+  .login-footer {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+  }
+}
+
+/* Mobile Portrait */
+@media (max-width: 480px) {
+  :root {
+    --container-padding: 0.75rem;
+    --form-padding: 1.5rem;
+    --header-size: 1.5rem;
+    --input-padding: 0.875rem;
+    --button-padding: 0.875rem 1.25rem;
+  }
+
+  .branding-section {
+    min-height: 30vh;
+    padding: 1rem 0.75rem;
+  }
+
+  .login-section {
+    min-height: 70vh;
+    padding: 0.75rem;
+  }
+
+  .login-container {
+    padding: var(--form-padding);
+    margin: 0.25rem;
+    max-width: calc(100vw - 1rem);
   }
 
   .login-header h2 {
-    font-size: 1.4rem;
+    font-size: var(--header-size);
+    margin-bottom: 0.25rem;
   }
 
   .input-wrapper input,
   .input-wrapper select {
-    padding: 0.75rem;
-    font-size: 0.9rem;
+    padding: var(--input-padding) var(--input-padding) var(--input-padding) 2.75rem;
+  }
+
+  .input-wrapper select {
+    padding-left: var(--input-padding);
+  }
+
+  .input-icon {
+    left: 1rem;
+    width: 18px;
+    height: 18px;
+  }
+
+  .date-input-group input,
+  .date-input-group select {
+    padding: var(--input-padding);
   }
 
   .login-button {
-    padding: 0.75rem;
+    padding: var(--button-padding);
+    min-height: 48px;
+  }
+
+  .brand-tagline {
+    margin-bottom: 1rem;
+  }
+
+  .logo-container {
+    margin-bottom: 0.5rem;
+  }
+
+  .security-badge {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+  }
+
+  .security-badge svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+/* Very Small Mobile Devices */
+@media (max-width: 360px) {
+  :root {
+    --form-padding: 1.25rem;
+    --input-padding: 0.75rem;
+  }
+
+  .login-container {
+    padding: var(--form-padding);
+  }
+
+  .brand-features {
+    max-width: 240px;
+  }
+
+  .feature-item {
+    gap: 0.5rem;
+    padding: 0.375rem;
+  }
+
+  .date-input-group {
+    gap: 0.5rem;
+  }
+}
+
+/* Large Screens Optimization */
+@media (min-width: 1400px) {
+  .main-container {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .login-container {
+    max-width: 450px;
+  }
+
+  .brand-features {
+    max-width: 350px;
+  }
+}
+
+/* High DPI / Retina Display Optimization */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .logo-icon,
+  .security-badge,
+  .login-button {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .login-button,
+  .input-wrapper input,
+  .input-wrapper select,
+  .date-input-group input,
+  .date-input-group select {
+    min-height: 44px; /* Better touch targets */
+  }
+
+  .feature-item:hover {
+    transform: none; /* Remove hover effects on touch */
+  }
+
+  .logo-icon:hover {
+    transform: none;
+  }
+
+  .login-button:hover {
+    transform: none;
+  }
+}
+
+/* Dark Mode Support (if needed) */
+@media (prefers-color-scheme: dark) {
+  /* Already optimized for dark theme */
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .login-container {
+    animation: none;
+  }
+
+  .form-group {
+    animation: none;
+  }
+
+  .login-button::before {
+    transition: none;
+  }
+}
+
+/* Print Styles */
+@media print {
+  #bg,
+  .loading-overlay {
+    display: none !important;
+  }
+
+  .main-container {
+    background: white;
+    color: black;
+  }
+
+  .branding-section {
+    background: none;
+    backdrop-filter: none;
+  }
+
+  .login-container {
+    background: white;
+    box-shadow: none;
+    border: 1px solid #ccc;
+  }
+}
+
+/* Focus Visible Support for Better Accessibility */
+.login-button:focus-visible,
+.input-wrapper input:focus-visible,
+.input-wrapper select:focus-visible {
+  outline: 2px solid var(--primary-blue);
+  outline-offset: 2px;
+}
+
+/* Error Notification Responsive Styles */
+.error-notification {
+  position: fixed !important;
+  top: 1rem !important;
+  right: 1rem !important;
+  left: 1rem !important;
+  max-width: none !important;
+  z-index: 1001 !important;
+  margin: 0 auto !important;
+}
+
+@media (min-width: 768px) {
+  .error-notification {
+    left: auto !important;
+    right: 2rem !important;
+    max-width: 400px !important;
+  }
+}
+
+/* Loading Spinner Responsive */
+@media (max-width: 480px) {
+  .loading-spinner {
+    padding: 2rem 1rem;
+  }
+
+  .spinner {
+    width: 32px;
+    height: 32px;
+  }
+
+  .loading-spinner p {
     font-size: 0.9rem;
   }
 }
 
-/* ==== FIX INPUT ICON OVERLAP ON SMALL SCREENS (≤430px) ==== */
-@media (max-width: 430px) {
-  .input-wrapper {
-    position: relative;
+/* Landscape Mobile Specific */
+@media (max-height: 500px) and (orientation: landscape) {
+  .main-container {
+    flex-direction: row;
   }
 
-  .input-wrapper input {
-    padding: 0.75rem 0.75rem 0.75rem 2.75rem; /* soldaki padding biraz arttırıldı */
-    font-size: 0.9rem;
+  .branding-section {
+    flex: 0.4;
+    min-height: 100vh;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: none;
   }
 
-  .input-icon {
-    left: 0.75rem; /* ikonu sola biraz kaydır */
-    width: 18px;
-    height: 18px;
+  .login-section {
+    flex: 0.6;
+    min-height: 100vh;
+  }
+
+  .brand-features {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .feature-item {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .login-container {
+    padding: 1.5rem;
+  }
+
+  .login-form {
+    gap: 1rem;
   }
 }
