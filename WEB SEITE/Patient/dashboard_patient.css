@@ -1,3 +1,477 @@
+/* ====== Reset & Grund-Layout ====== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+html, body {
+  height: 100%;
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+}
+body {
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+}
+
+/* ====== Particle-Canvas ====== */
+#bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+}
+
+/* ====== Header ====== */
+.header {
+  position: fixed;
+  top: 0;
+  width: 100%;
+  background: rgba(255,255,255,0.9);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  z-index: 1;
+}
+.header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  width: 100%;
+}
+.logo {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #2d7ff9;
+}
+.nav a {
+  margin-left: 1rem;
+  color: #333;
+  text-decoration: none;
+  font-size: 1rem;
+  transition: color 0.2s;
+}
+.nav a:hover {
+  color: #2d7ff9;
+}
+
+/* ====== Main ====== */
+.main {
+  flex: 1;
+  margin-top: 3.5rem;    /* header-Höhe */
+  margin-bottom: 3.5rem; /* footer-Höhe */
+  padding: 2rem 1rem;
+}
+.dashboard-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+.dashboard-header h2 {
+  font-size: 1.5rem;
+  color: #333;
+  margin-bottom: 1rem;
+}
+.cards {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.card {
+  background: rgba(255,255,255,0.95);
+  padding: 1.25rem 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  flex: 1;
+  min-width: 200px;
+  max-width: 250px;
+}
+.card h3 {
+  font-size: 1rem;
+  color: #555;
+  margin-bottom: 0.5rem;
+}
+.card p {
+  font-size: 2rem;
+  color: #2d7ff9;
+}
+
+/* ====== Tabelle ====== */
+.table-section h3 {
+  color: #333;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+.table-wrapper {
+  overflow-x: auto;
+}
+#assignmentsTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(255,255,255,0.95);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+#assignmentsTable th,
+#assignmentsTable td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+#assignmentsTable th {
+  background: rgba(255,255,255,0.9);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.status {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: bold;
+}
+.status.abgeschlossen {
+  background: #28a74533;
+  color: #28a745;
+}
+.status.ausstehend {
+  background: #ffc10733;
+  color: #856404;
+}
+
+/* ====== Footer ====== */
+.footer {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  background: rgba(255,255,255,0.9);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+  text-align: center;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: #555;
+}
+
+/* Zusätzlich für Information ändern */
+.form-section {
+  margin-bottom: 1.5rem;
+}
+
+.form-section label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #555;
+}
+
+.form-section textarea,
+.form-section select {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.divider {
+  margin: 2rem 0;
+  height: 1px;
+  background-color: #ddd;
+}
+
+.delete-section h2 {
+  color: #d9534f;
+  margin-bottom: 0.5rem;
+}
+
+.delete-section p {
+  color: #a94442;
+  margin-bottom: 1rem;
+}
+
+.delete-btn {
+  background-color: #d9534f;
+  color: #fff;
+  border: none;
+  padding: 0.8rem 2rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.delete-btn:hover {
+  background-color: #c9302c;
+}
+
+
+
+
+/* ====== Responsive ====== */
+@media (max-width: 768px) {
+  .cards { flex-direction: column; align-items: center; }
+}
+
+
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+.modern-card {
+  background: #fff;
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.1);
+}
+
+.modern-card h1, .modern-card h2 {
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.modern-form .form-group {
+  margin-bottom: 1.5rem;
+}
+
+.modern-form label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #555;
+}
+
+.modern-form textarea,
+.modern-form select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.modern-form textarea:focus,
+.modern-form select:focus {
+  border-color: #2d7ff9;
+  outline: none;
+}
+
+.btn-primary {
+  background: linear-gradient(90deg, #2d7ff9, #4b86f9);
+  color: white;
+  border: none;
+  padding: 0.8rem 2rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(90deg, #1b5fd9, #376de9);
+}
+
+.danger-card {
+  border-left: 4px solid #d9534f;
+  margin-top: 2rem;
+}
+
+.danger-card p {
+  color: #a94442;
+  margin: 1rem 0;
+}
+
+.btn-danger {
+  background: #d9534f;
+  color: white;
+  border: none;
+  padding: 0.8rem 2rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.btn-danger:hover {
+  background: #c9302c;
+}
+
+/* Add these additional styles to your existing dashboard_patient.css */
+
+/* Enhanced card styling for patient info */
+.card p {
+  font-size: 1.5rem;
+  color: #2d7ff9;
+  font-weight: 600;
+}
+
+/* Better status indicators */
+.status.abgeschlossen {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status.ausstehend {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+/* Loading states */
+.loading {
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Auto-refresh indicator */
+.refresh-indicator {
+  position: fixed;
+  top: 70px;
+  right: 20px;
+  background: rgba(45, 127, 249, 0.9);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 10;
+}
+
+.refresh-indicator.show {
+  opacity: 1;
+}
+
+/* Enhanced table styling */
+#assignmentsTable tr:hover,
+#historyTable tr:hover {
+  background-color: rgba(45, 127, 249, 0.05);
+}
+
+/* Better responsive design for patient cards */
+@media (max-width: 768px) {
+  .cards {
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .card {
+    max-width: 100%;
+    width: 280px;
+  }
+
+  .dashboard-header h2 {
+    font-size: 1.25rem;
+    line-height: 1.4;
+  }
+}
+
+/* Notification styles for new assignments */
+.new-assignment {
+  animation: highlightNew 2s ease-in-out;
+}
+
+@keyframes highlightNew {
+  0% { background-color: rgba(45, 127, 249, 0.2); }
+  100% { background-color: transparent; }
+}
+
+/* Empty state styling */
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: #6c757d;
+}
+
+.empty-state img {
+  width: 64px;
+  height: 64px;
+  opacity: 0.5;
+  margin-bottom: 1rem;
+}
+
+/* Button styles */
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  margin: 1rem 0;
+  transition: background 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.btn-secondary:hover {
+  background: #5a6268;
+}
+
+/* History table specific styling */
+#historyTable {
+  margin-top: 1rem;
+}
+
+#historyTable th {
+  background: rgba(108, 117, 125, 0.1);
+  color: #495057;
+}
+
+/* Success/Error message styling */
+.message {
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+.message.success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.message.error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+/* Navigation improvements */
+.nav a:last-child {
+  color: #dc3545;
+}
+
+.nav a:last-child:hover {
+  color: #c82333;
+}
+
+/* Task count styling in cards */
+.card p[id="todayTaskCount"] {
+  font-size: 2.5rem;
+  font-weight: bold;
+}
+
+/* Time column styling */
+td:nth-child(2) {
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  color: #495057;
+}
+
+@media (max-width: 600px) {
+  .modern-card {
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+}
+
 /* Add these styles to your existing dashboard_patient.css file */
 /* Clean version without experimental CSS properties */
 
@@ -600,222 +1074,5 @@
 
   .urgentPulse {
     animation: none;
-  }
-}
-
-/* Minimal CSS additions for Transfer Request feature */
-/* Add these styles to the END of your existing dashboard_patient.css */
-
-/* Transfer Request Section */
-.transfer-request-section {
-  display: block;
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-/* Form Enhancements - only new classes to avoid conflicts */
-.modern-form .form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.modern-form .form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.modern-form .form-group label {
-  font-weight: 500;
-  color: #555;
-  font-size: 0.9rem;
-}
-
-.modern-form .form-group input,
-.modern-form .form-group select,
-.modern-form .form-group textarea {
-  padding: 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
-}
-
-.modern-form .form-group input:focus,
-.modern-form .form-group select:focus,
-.modern-form .form-group textarea:focus {
-  border-color: #2d7ff9;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(45, 127, 249, 0.1);
-}
-
-.modern-form .form-group input:disabled {
-  background-color: #f8f9fa;
-  color: #6c757d;
-  cursor: not-allowed;
-}
-
-.modern-form .form-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-  margin-top: 1.5rem;
-}
-
-/* Priority indicators */
-.priority {
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-weight: bold;
-  text-transform: uppercase;
-}
-
-.priority.normal {
-  background: #d1ecf1;
-  color: #0c5460;
-}
-
-.priority.high {
-  background: #fff3cd;
-  color: #856404;
-}
-
-.priority.urgent {
-  background: #f8d7da;
-  color: #721c24;
-}
-
-/* Status indicators - extend existing status styles */
-.status.approved {
-  background: #d4edda;
-  color: #155724;
-}
-
-.status.rejected {
-  background: #f8d7da;
-  color: #721c24;
-}
-
-.status.pending {
-  background: #fff3cd;
-  color: #856404;
-}
-
-/* Requests table */
-#requestsTable {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 1rem;
-  background: white;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-#requestsTable th {
-  background: #f8f9fa;
-  color: #495057;
-  font-weight: 600;
-  padding: 0.75rem;
-  text-align: left;
-  border-bottom: 2px solid #dee2e6;
-}
-
-#requestsTable td {
-  padding: 0.75rem;
-  border-bottom: 1px solid #e9ecef;
-}
-
-#requestsTable tr:hover {
-  background: rgba(45, 127, 249, 0.05);
-}
-
-/* Notification system - safe implementation */
-#notificationArea {
-  position: fixed;
-  top: 80px;
-  right: 20px;
-  z-index: 1001;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-width: 400px;
-}
-
-.notification {
-  background: white;
-  border-radius: 8px;
-  padding: 1rem;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  border-left: 4px solid #2d7ff9;
-  animation: slideInRight 0.3s ease-out;
-}
-
-.notification.success {
-  border-left-color: #28a745;
-}
-
-.notification.error {
-  border-left-color: #dc3545;
-}
-
-.notification-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-}
-
-.notification-close {
-  background: none;
-  border: none;
-  font-size: 1.2rem;
-  cursor: pointer;
-  color: #6c757d;
-  padding: 0;
-}
-
-.notification-close:hover {
-  color: #495057;
-}
-
-@keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-  .modern-form .form-row {
-    grid-template-columns: 1fr;
-  }
-
-  .section-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .modern-form .form-actions {
-    flex-direction: column;
-  }
-
-  #notificationArea {
-    left: 10px;
-    right: 10px;
-    max-width: none;
   }
 }

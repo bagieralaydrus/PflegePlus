@@ -247,10 +247,10 @@ app.put('/api/assignments/:assignmentId/status', async (req, res) => {
 
     try {
         const updateQuery = `
-            UPDATE assignments 
+            UPDATE assignments
             SET status = $1, updated_at = NOW()
             WHERE id = $2
-            RETURNING *
+                RETURNING *
         `;
 
         const result = await pool.query(updateQuery, [status, assignmentId]);
@@ -281,9 +281,9 @@ app.delete('/api/assignments/:assignmentId', async (req, res) => {
 
     try {
         const deleteQuery = `
-            DELETE FROM assignments 
+            DELETE FROM assignments
             WHERE id = $1
-            RETURNING *
+                RETURNING *
         `;
 
         const result = await pool.query(deleteQuery, [assignmentId]);
@@ -366,9 +366,9 @@ app.get('/api/dashboard/:mitarbeiterId', async (req, res) => {
         const completedCountQuery = `
             SELECT COUNT(*) as completed_count
             FROM assignments
-            WHERE mitarbeiter_id = $1 
-            AND status = 'abgeschlossen'
-            AND DATE(created_at) = CURRENT_DATE
+            WHERE mitarbeiter_id = $1
+              AND status = 'abgeschlossen'
+              AND DATE(created_at) = CURRENT_DATE
         `;
         const completedResult = await pool.query(completedCountQuery, [mitarbeiterId]);
         const completedCount = completedResult.rows[0].completed_count;
@@ -446,8 +446,6 @@ app.post('/api/assignments', async (req, res) => {
     }
 });
 
-// Also, let's make sure we remove the duplicate /api/assignments endpoint
-// Keep only this one and remove any other duplicate endpoints in your server.js
 // Get patients list for assignment form
 app.get('/api/patients', async (req, res) => {
     try {
@@ -468,44 +466,6 @@ app.get('/api/patients', async (req, res) => {
     }
 });
 
-app.post('/api/assignments', async (req, res) => {
-    const { mitarbeiterId, patientId, aufgabe, zeit, status } = req.body;
-
-    try {
-        // Create assignments table if it doesn't exist
-        const createTableQuery = `
-            CREATE TABLE IF NOT EXISTS assignments (
-                                                       id SERIAL PRIMARY KEY,
-                                                       mitarbeiter_id INTEGER REFERENCES mitarbeiter(id),
-                patient_id INTEGER REFERENCES patienten(id),
-                aufgabe TEXT NOT NULL,
-                zeit VARCHAR(5) NOT NULL,
-                status VARCHAR(20) NOT NULL,
-                created_at TIMESTAMP DEFAULT NOW()
-                )
-        `;
-        await pool.query(createTableQuery);
-
-        const insertQuery = `
-            INSERT INTO assignments (mitarbeiter_id, patient_id, aufgabe, zeit, status, created_at)
-            VALUES ($1, $2, $3, $4, $5, NOW())
-            RETURNING *
-        `;
-
-        const result = await pool.query(insertQuery, [mitarbeiterId, patientId, aufgabe, zeit, status]);
-
-        res.json({
-            success: true,
-            assignment: result.rows[0]
-        });
-    } catch (error) {
-        console.error('Assignment creation error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error creating assignment'
-        });
-    }
-});
 // Add this new endpoint to your server.js file (after the existing /api/patients endpoint)
 
 // Get ASSIGNED patients list for a specific Mitarbeiter
@@ -514,9 +474,9 @@ app.get('/api/patients/assigned/:mitarbeiterId', async (req, res) => {
 
     try {
         const query = `
-            SELECT p.id, p.vorname, p.nachname 
+            SELECT p.id, p.vorname, p.nachname
             FROM patient_zuweisung pz
-            JOIN patienten p ON pz.patient_id = p.id
+                     JOIN patienten p ON pz.patient_id = p.id
             WHERE pz.mitarbeiter_id = $1
             ORDER BY p.nachname, p.vorname
         `;
@@ -535,9 +495,7 @@ app.get('/api/patients/assigned/:mitarbeiterId', async (req, res) => {
     }
 });
 
-// Add these endpoints to your existing server.js file
-
-// ========== PATIENT TRANSFER REQUEST ENDPOINTS ==========
+// ========== PATIENT TRANSFER REQUEST ENDPOINTS - FIXED ==========
 
 // Enhanced patient dashboard endpoint to include current location
 app.get('/api/patient/dashboard/:patientId', async (req, res) => {
@@ -614,7 +572,7 @@ app.get('/api/patient/dashboard/:patientId', async (req, res) => {
     }
 });
 
-// Create a new transfer request
+// Create a new transfer request - FIXED
 app.post('/api/patient/transfer-requests', async (req, res) => {
     const {
         patientId,
@@ -623,12 +581,13 @@ app.post('/api/patient/transfer-requests', async (req, res) => {
         reason,
         prioritaet,
         requesterType,
-        requesterId
+        requesterId,
+        requesterName
     } = req.body;
 
     try {
         // Validate required fields
-        if (!patientId || !requestedStandort || !reason) {
+        if (!patientId || !requestedStandort || !reason || !requesterName) {
             return res.status(400).json({
                 success: false,
                 message: 'Alle Pflichtfelder müssen ausgefüllt werden'
@@ -672,20 +631,21 @@ app.post('/api/patient/transfer-requests', async (req, res) => {
             });
         }
 
-        // Create the transfer request
+        // Create the transfer request using correct German column names
         const insertQuery = `
             INSERT INTO transfer_requests (
                 patient_id, 
                 requester_type, 
                 requester_id, 
+                requester_name,
                 current_standort, 
-                requested_standort, 
-                reason, 
+                gewuenschter_standort, 
+                grund, 
                 prioritaet, 
                 status,
-                created_at
+                erstellt_am
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', NOW())
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', NOW())
             RETURNING *
         `;
 
@@ -693,6 +653,7 @@ app.post('/api/patient/transfer-requests', async (req, res) => {
             patientId,
             requesterType || 'patient',
             requesterId,
+            requesterName,
             actualCurrentStandort,
             requestedStandort,
             reason,
@@ -741,7 +702,7 @@ app.post('/api/patient/transfer-requests', async (req, res) => {
     }
 });
 
-// Get transfer requests for a specific patient
+// Get transfer requests for a specific patient - FIXED
 app.get('/api/patient/transfer-requests/:patientId', async (req, res) => {
     const { patientId } = req.params;
 
@@ -749,11 +710,11 @@ app.get('/api/patient/transfer-requests/:patientId', async (req, res) => {
         const requestsQuery = `
             SELECT 
                 tr.*,
-                m.vorname || ' ' || m.nachname as processed_by_name
+                m.vorname || ' ' || m.nachname as admin_name
             FROM transfer_requests tr
-            LEFT JOIN mitarbeiter m ON tr.processed_by = m.id
+            LEFT JOIN mitarbeiter m ON tr.admin_id = m.id
             WHERE tr.patient_id = $1
-            ORDER BY tr.created_at DESC
+            ORDER BY tr.erstellt_am DESC
         `;
 
         const result = await pool.query(requestsQuery, [patientId]);
@@ -772,7 +733,7 @@ app.get('/api/patient/transfer-requests/:patientId', async (req, res) => {
     }
 });
 
-// Cancel a transfer request (only if status is pending)
+// Cancel a transfer request - FIXED
 app.delete('/api/patient/transfer-requests/:requestId', async (req, res) => {
     const { requestId } = req.params;
     const { patientId } = req.body;
@@ -799,12 +760,12 @@ app.delete('/api/patient/transfer-requests/:requestId', async (req, res) => {
             });
         }
 
-        // Update status to cancelled
+        // Update status to cancelled using correct German column names
         const updateQuery = `
-            UPDATE transfer_requests 
-            SET status = 'cancelled', processed_at = NOW()
+            UPDATE transfer_requests
+            SET status = 'cancelled', bearbeitet_am = NOW()
             WHERE id = $1
-            RETURNING *
+                RETURNING *
         `;
 
         const result = await pool.query(updateQuery, [requestId]);
@@ -824,23 +785,18 @@ app.delete('/api/patient/transfer-requests/:requestId', async (req, res) => {
     }
 });
 
-// ========== ADMIN ENDPOINTS FOR TRANSFER REQUESTS ==========
+// ========== ADMIN ENDPOINTS FOR TRANSFER REQUESTS - FIXED ==========
 
-// Get all pending transfer requests for admin
+// Get all pending transfer requests for admin - FIXED
 app.get('/api/admin/transfers/requests', async (req, res) => {
     try {
         const requestsQuery = `
             SELECT 
                 tr.*,
                 p.vorname || ' ' || p.nachname as patient_name,
-                CASE 
-                    WHEN tr.requester_type = 'patient' THEN p.vorname || ' ' || p.nachname
-                    WHEN tr.requester_type = 'angehoerige' THEN a.vorname || ' ' || a.nachname
-                    ELSE 'Unbekannt'
-                END as requester_name
+                tr.requester_name
             FROM transfer_requests tr
             JOIN patienten p ON tr.patient_id = p.id
-            LEFT JOIN angehoerige a ON tr.requester_type = 'angehoerige' AND tr.requester_id = a.id
             WHERE tr.status = 'pending'
             ORDER BY 
                 CASE tr.prioritaet 
@@ -849,7 +805,7 @@ app.get('/api/admin/transfers/requests', async (req, res) => {
                     WHEN 'normal' THEN 3 
                     ELSE 4 
                 END,
-                tr.created_at ASC
+                tr.erstellt_am ASC
         `;
 
         const result = await pool.query(requestsQuery);
@@ -868,7 +824,7 @@ app.get('/api/admin/transfers/requests', async (req, res) => {
     }
 });
 
-// Approve a transfer request
+// Approve a transfer request - FIXED
 app.post('/api/admin/transfers/requests/:requestId/approve', async (req, res) => {
     const { requestId } = req.params;
     const { adminId, adminResponse } = req.body;
@@ -876,7 +832,7 @@ app.post('/api/admin/transfers/requests/:requestId/approve', async (req, res) =>
     try {
         await pool.query('BEGIN');
 
-        // Get request details
+        // Get request details using correct column names
         const requestQuery = `
             SELECT * FROM transfer_requests 
             WHERE id = $1 AND status = 'pending'
@@ -899,7 +855,7 @@ app.post('/api/admin/transfers/requests/:requestId/approve', async (req, res) =>
             SET standort = $1
             WHERE id = $2
         `;
-        await pool.query(updatePatientQuery, [request.requested_standort, request.patient_id]);
+        await pool.query(updatePatientQuery, [request.gewuenschter_standort, request.patient_id]);
 
         // Log the transfer in standort_verlauf
         const logTransferQuery = `
@@ -916,20 +872,19 @@ app.post('/api/admin/transfers/requests/:requestId/approve', async (req, res) =>
         await pool.query(logTransferQuery, [
             request.patient_id,
             request.current_standort,
-            request.requested_standort,
-            `Genehmigter Transfer-Antrag: ${request.reason}`,
+            request.gewuenschter_standort,
+            `Genehmigter Transfer-Antrag: ${request.grund}`,
             adminId
         ]);
 
-        // Update request status
+        // Update request status using correct German column names
         const updateRequestQuery = `
             UPDATE transfer_requests 
             SET 
                 status = 'approved',
                 admin_response = $1,
-                processed_by = $2,
-                processed_at = NOW(),
-                completed_at = NOW()
+                admin_id = $2,
+                bearbeitet_am = NOW()
             WHERE id = $3
             RETURNING *
         `;
@@ -951,7 +906,7 @@ app.post('/api/admin/transfers/requests/:requestId/approve', async (req, res) =>
             )
             VALUES ($1, 'transfer_approved', 'Transfer genehmigt', $2, 'normal', NOW())
         `;
-        const notificationMessage = `Ihr Transfer-Antrag von ${request.current_standort} nach ${request.requested_standort} wurde genehmigt und durchgeführt.`;
+        const notificationMessage = `Ihr Transfer-Antrag von ${request.current_standort} nach ${request.gewuenschter_standort} wurde genehmigt und durchgeführt.`;
         await pool.query(patientNotificationQuery, [request.patient_id, notificationMessage]);
 
         await pool.query('COMMIT');
@@ -972,7 +927,7 @@ app.post('/api/admin/transfers/requests/:requestId/approve', async (req, res) =>
     }
 });
 
-// Reject a transfer request
+// Reject a transfer request - FIXED
 app.post('/api/admin/transfers/requests/:requestId/reject', async (req, res) => {
     const { requestId } = req.params;
     const { adminId, rejectionReason } = req.body;
@@ -994,16 +949,16 @@ app.post('/api/admin/transfers/requests/:requestId/reject', async (req, res) => 
 
         const request = requestResult.rows[0];
 
-        // Update request status
+        // Update request status using correct German column names
         const updateRequestQuery = `
-            UPDATE transfer_requests 
-            SET 
+            UPDATE transfer_requests
+            SET
                 status = 'rejected',
                 admin_response = $1,
-                processed_by = $2,
-                processed_at = NOW()
+                admin_id = $2,
+                bearbeitet_am = NOW()
             WHERE id = $3
-            RETURNING *
+                RETURNING *
         `;
         const result = await pool.query(updateRequestQuery, [
             rejectionReason || 'Transfer-Anfrage abgelehnt',
@@ -1023,7 +978,7 @@ app.post('/api/admin/transfers/requests/:requestId/reject', async (req, res) => 
             )
             VALUES ($1, 'transfer_rejected', 'Transfer abgelehnt', $2, 'normal', NOW())
         `;
-        const notificationMessage = `Ihr Transfer-Antrag von ${request.current_standort} nach ${request.requested_standort} wurde abgelehnt. Grund: ${rejectionReason || 'Nicht angegeben'}`;
+        const notificationMessage = `Ihr Transfer-Antrag von ${request.current_standort} nach ${request.gewuenschter_standort} wurde abgelehnt. Grund: ${rejectionReason || 'Nicht angegeben'}`;
         await pool.query(patientNotificationQuery, [request.patient_id, notificationMessage]);
 
         res.json({
@@ -1041,7 +996,7 @@ app.post('/api/admin/transfers/requests/:requestId/reject', async (req, res) => 
     }
 });
 
-// Get transfer request statistics for admin dashboard
+// Get transfer request statistics for admin dashboard - FIXED
 app.get('/api/admin/transfers/statistics', async (req, res) => {
     try {
         const statsQuery = `
@@ -1052,7 +1007,7 @@ app.get('/api/admin/transfers/statistics', async (req, res) => {
                 COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_requests,
                 COUNT(CASE WHEN prioritaet = 'urgent' AND status = 'pending' THEN 1 END) as urgent_pending
             FROM transfer_requests
-            WHERE created_at >= NOW() - INTERVAL '30 days'
+            WHERE erstellt_am >= NOW() - INTERVAL '30 days'
         `;
 
         const result = await pool.query(statsQuery);
@@ -1078,16 +1033,16 @@ app.get('/api/patient/assignments/history/:patientId', async (req, res) => {
 
     try {
         const historyQuery = `
-            SELECT 
+            SELECT
                 a.aufgabe,
                 a.zeit,
                 a.status,
                 a.created_at,
                 m.vorname || ' ' || m.nachname as pflegekraft_name
             FROM assignments a
-            JOIN mitarbeiter m ON a.mitarbeiter_id = m.id
+                     JOIN mitarbeiter m ON a.mitarbeiter_id = m.id
             WHERE a.patient_id = $1
-            AND a.created_at >= NOW() - INTERVAL '${days} days'
+              AND a.created_at >= NOW() - INTERVAL '${days} days'
             ORDER BY a.created_at DESC
         `;
 
@@ -1125,13 +1080,13 @@ app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'WEB SEITE', 'Admin', 'index.html'));
 });
 
-// Admin dashboard API endpoint
+// Admin dashboard API endpoint - FIXED
 app.get('/api/admin/dashboard', async (req, res) => {
     try {
-        // Get location statistics
-        const locationStats = await pool.query(`
+        // Get location statistics for patients
+        const patientLocationStats = await pool.query(`
             SELECT 
-                p.standort,
+                COALESCE(p.standort, 'Unbekannt') as standort,
                 COUNT(p.id) as total_patients,
                 COUNT(CASE WHEN pz.status = 'active' THEN 1 END) as assigned_patients
             FROM patienten p
@@ -1141,11 +1096,12 @@ app.get('/api/admin/dashboard', async (req, res) => {
             ORDER BY p.standort
         `);
 
-        const pflegekraftStats = await pool.query(`
+        // Get pflegekraft statistics by location
+        const pflegekraftLocationStats = await pool.query(`
             SELECT 
-                m.standort,
+                COALESCE(m.standort, 'Unbekannt') as standort,
                 COUNT(m.id) as total_pflegekraefte,
-                ROUND(AVG(patient_counts.patient_count), 2) as avg_patients_per_pflegekraft
+                ROUND(AVG(COALESCE(patient_counts.patient_count, 0)), 2) as avg_patients_per_pflegekraft
             FROM mitarbeiter m
             LEFT JOIN (
                 SELECT mitarbeiter_id, COUNT(*) as patient_count
@@ -1174,26 +1130,35 @@ app.get('/api/admin/dashboard', async (req, res) => {
         const workloadAlerts = await pool.query(`
             SELECT 
                 m.id,
-                m.vorname || ' ' || m.nachname as pflegekraft_name,
-                m.standort,
+                COALESCE(m.vorname || ' ' || m.nachname, m.benutzername) as pflegekraft_name,
+                COALESCE(m.standort, 'Unbekannt') as standort,
                 COUNT(pz.patient_id) as patient_count
             FROM mitarbeiter m
             LEFT JOIN patient_zuweisung pz ON m.id = pz.mitarbeiter_id AND pz.status = 'active'
             WHERE m.rolle = 'pflegekraft' AND m.status = 'active'
-            GROUP BY m.id, m.vorname, m.nachname, m.standort
+            GROUP BY m.id, m.vorname, m.nachname, m.benutzername, m.standort
             HAVING COUNT(pz.patient_id) > 20
             ORDER BY COUNT(pz.patient_id) DESC
+        `);
+
+        // Get overall system statistics
+        const systemStats = await pool.query(`
+            SELECT 
+                (SELECT COUNT(*) FROM patienten WHERE status = 'active') as total_active_patients,
+                (SELECT COUNT(*) FROM mitarbeiter WHERE rolle = 'pflegekraft' AND status = 'active') as total_pflegekraefte,
+                (SELECT COUNT(*) FROM patient_zuweisung WHERE status = 'active') as total_assignments
         `);
 
         res.json({
             success: true,
             dashboard: {
                 location_statistics: {
-                    patients: locationStats.rows,
-                    pflegekraefte: pflegekraftStats.rows
+                    patients: patientLocationStats.rows,
+                    pflegekraefte: pflegekraftLocationStats.rows
                 },
                 recent_transfers: recentTransfers.rows,
-                workload_alerts: workloadAlerts.rows
+                workload_alerts: workloadAlerts.rows,
+                system_stats: systemStats.rows[0]
             }
         });
 
@@ -1201,14 +1166,12 @@ app.get('/api/admin/dashboard', async (req, res) => {
         console.error('Admin dashboard error:', error);
         res.status(500).json({
             success: false,
-            message: 'Error loading admin dashboard'
+            message: 'Error loading admin dashboard: ' + error.message
         });
     }
 });
 
-// Add these endpoints to your existing server.js file
-
-// ========== TRANSFER MANAGEMENT ENDPOINTS ==========
+// ========== TRANSFER MANAGEMENT ENDPOINTS - FIXED ==========
 
 // Handle admin-initiated transfers
 app.post('/api/admin/transfers', async (req, res) => {
@@ -1319,25 +1282,6 @@ app.get('/api/admin/transfers/recent', async (req, res) => {
     }
 });
 
-// Get transfer requests (for future implementation)
-app.get('/api/admin/transfers/requests', async (req, res) => {
-    try {
-        // This endpoint would be used if you implement a request system
-        // For now, return empty array
-        res.json({
-            success: true,
-            requests: []
-        });
-
-    } catch (error) {
-        console.error('Transfer requests error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Fehler beim Laden der Transfer-Anfragen'
-        });
-    }
-});
-
 // ========== DETAILED STATISTICS ENDPOINTS ==========
 
 // Get detailed statistics for the statistics section
@@ -1388,99 +1332,6 @@ app.get('/api/admin/statistics/detailed', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Fehler beim Laden der detaillierten Statistiken'
-        });
-    }
-});
-
-// ========== IMPROVED ADMIN DASHBOARD ENDPOINT ==========
-
-// Enhanced admin dashboard endpoint with better error handling
-app.get('/api/admin/dashboard', async (req, res) => {
-    try {
-        // Get location statistics for patients
-        const patientLocationStats = await pool.query(`
-            SELECT 
-                COALESCE(p.standort, 'Unbekannt') as standort,
-                COUNT(p.id) as total_patients,
-                COUNT(CASE WHEN pz.status = 'active' THEN 1 END) as assigned_patients
-            FROM patienten p
-            LEFT JOIN patient_zuweisung pz ON p.id = pz.patient_id AND pz.status = 'active'
-            WHERE p.status = 'active'
-            GROUP BY p.standort
-            ORDER BY p.standort
-        `);
-
-        // Get pflegekraft statistics by location
-        const pflegekraftLocationStats = await pool.query(`
-            SELECT 
-                COALESCE(m.standort, 'Unbekannt') as standort,
-                COUNT(m.id) as total_pflegekraefte,
-                ROUND(AVG(COALESCE(patient_counts.patient_count, 0)), 2) as avg_patients_per_pflegekraft
-            FROM mitarbeiter m
-            LEFT JOIN (
-                SELECT mitarbeiter_id, COUNT(*) as patient_count
-                FROM patient_zuweisung 
-                WHERE status = 'active'
-                GROUP BY mitarbeiter_id
-            ) patient_counts ON m.id = patient_counts.mitarbeiter_id
-            WHERE m.rolle = 'pflegekraft' AND m.status = 'active'
-            GROUP BY m.standort
-            ORDER BY m.standort
-        `);
-
-        // Get recent transfers (last 7 days)
-        const recentTransfers = await pool.query(`
-            SELECT 
-                sv.*,
-                p.vorname || ' ' || p.nachname as patient_name
-            FROM standort_verlauf sv
-            JOIN patienten p ON sv.patient_id = p.id
-            WHERE sv.geaendert_am >= NOW() - INTERVAL '7 days'
-            ORDER BY sv.geaendert_am DESC
-            LIMIT 5
-        `);
-
-        // Get workload alerts (Pflegekräfte with >20 patients)
-        const workloadAlerts = await pool.query(`
-            SELECT 
-                m.id,
-                COALESCE(m.vorname || ' ' || m.nachname, m.benutzername) as pflegekraft_name,
-                COALESCE(m.standort, 'Unbekannt') as standort,
-                COUNT(pz.patient_id) as patient_count
-            FROM mitarbeiter m
-            LEFT JOIN patient_zuweisung pz ON m.id = pz.mitarbeiter_id AND pz.status = 'active'
-            WHERE m.rolle = 'pflegekraft' AND m.status = 'active'
-            GROUP BY m.id, m.vorname, m.nachname, m.benutzername, m.standort
-            HAVING COUNT(pz.patient_id) > 20
-            ORDER BY COUNT(pz.patient_id) DESC
-        `);
-
-        // Get overall system statistics
-        const systemStats = await pool.query(`
-            SELECT 
-                (SELECT COUNT(*) FROM patienten WHERE status = 'active') as total_active_patients,
-                (SELECT COUNT(*) FROM mitarbeiter WHERE rolle = 'pflegekraft' AND status = 'active') as total_pflegekraefte,
-                (SELECT COUNT(*) FROM patient_zuweisung WHERE status = 'active') as total_assignments
-        `);
-
-        res.json({
-            success: true,
-            dashboard: {
-                location_statistics: {
-                    patients: patientLocationStats.rows,
-                    pflegekraefte: pflegekraftLocationStats.rows
-                },
-                recent_transfers: recentTransfers.rows,
-                workload_alerts: workloadAlerts.rows,
-                system_stats: systemStats.rows[0]
-            }
-        });
-
-    } catch (error) {
-        console.error('Admin dashboard error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error loading admin dashboard: ' + error.message
         });
     }
 });
@@ -1605,7 +1456,7 @@ app.post('/api/admin/assignments/manual', async (req, res) => {
     try {
         // Check if patient is already assigned
         const existingQuery = `
-            SELECT * FROM patient_zuweisung 
+            SELECT * FROM patient_zuweisung
             WHERE patient_id = $1 AND status = 'active'
         `;
         const existing = await pool.query(existingQuery, [patientId]);
@@ -1699,16 +1550,16 @@ app.delete('/api/admin/assignments/:assignmentId', async (req, res) => {
 app.get('/api/admin/notifications', async (req, res) => {
     try {
         const notificationsQuery = `
-            SELECT 
+            SELECT
                 b.*,
                 p.vorname || ' ' || p.nachname as patient_name,
                 m.vorname || ' ' || m.nachname as mitarbeiter_name
             FROM benachrichtigungen b
-            LEFT JOIN patienten p ON b.patient_id = p.id
-            LEFT JOIN mitarbeiter m ON b.mitarbeiter_id = m.id
+                     LEFT JOIN patienten p ON b.patient_id = p.id
+                     LEFT JOIN mitarbeiter m ON b.mitarbeiter_id = m.id
             WHERE b.erstellt_am >= NOW() - INTERVAL '24 hours'
             ORDER BY b.erstellt_am DESC
-            LIMIT 50
+                LIMIT 50
         `;
 
         const result = await pool.query(notificationsQuery);
@@ -1858,6 +1709,49 @@ app.get('/api/admin/export/:type', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Export failed: ' + error.message
+        });
+    }
+});
+
+// Create the transfer_requests table if it doesn't exist with correct schema
+app.post('/api/admin/init-transfer-tables', async (req, res) => {
+    try {
+        const createTableQuery = `
+            CREATE TABLE IF NOT EXISTS transfer_requests (
+                                                             id SERIAL PRIMARY KEY,
+                                                             patient_id INTEGER REFERENCES patienten(id) ON DELETE CASCADE,
+                requester_type VARCHAR(20) NOT NULL, -- 'patient' or 'angehoerige'
+                requester_id INTEGER, -- patient_id if patient, angehoerige_id if family member
+                requester_name VARCHAR(200) NOT NULL,
+                current_standort VARCHAR(50) NOT NULL,
+                gewuenschter_standort VARCHAR(50) NOT NULL,
+                grund TEXT NOT NULL,
+                status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
+                admin_id INTEGER REFERENCES mitarbeiter(id), -- who processed the request
+                admin_response TEXT, -- admin's response/reason
+                erstellt_am TIMESTAMP DEFAULT NOW(),
+                bearbeitet_am TIMESTAMP,
+                prioritaet VARCHAR(20) DEFAULT 'normal' -- 'low', 'normal', 'high', 'urgent'
+                );
+
+            -- Add indexes
+            CREATE INDEX IF NOT EXISTS idx_transfer_requests_patient ON transfer_requests(patient_id);
+            CREATE INDEX IF NOT EXISTS idx_transfer_requests_status ON transfer_requests(status);
+            CREATE INDEX IF NOT EXISTS idx_transfer_requests_created ON transfer_requests(erstellt_am);
+        `;
+
+        await pool.query(createTableQuery);
+
+        res.json({
+            success: true,
+            message: 'Transfer-Tabellen erfolgreich initialisiert'
+        });
+
+    } catch (error) {
+        console.error('Table initialization error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler bei der Tabellen-Initialisierung: ' + error.message
         });
     }
 });
