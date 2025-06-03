@@ -596,93 +596,232 @@ html, body {
 }
 
 /* ========== RESPONSIVE DESIGN - MOBILE FIRST ========== */
-@media (max-width: 1024px) {
+/* ========== CUSTOM RESPONSIVE EXTENSIONS ========== */
+
+/* =================== PROFESSIONAL RESPONSIVE LAYOUT =================== */
+
+/* =================== PROFESSIONAL MOBILE-FIRST LAYOUT =================== */
+
+/* ========= FINAL CLEAN RESPONSIVE ========== */
+
+/* Mobile-first: ≤768px (default) */
+.main-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem;
+  width: 100%;
+  height: auto;
+}
+
+.branding-section {
+  width: 100%;
+  text-align: center;
+  order: 2;
+  padding: 1rem;
+}
+
+.login-section {
+  width: 100%;
+  order: 1;
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.login-container {
+  width: 100%;
+  max-width: 350px;
+  padding: 1.5rem;
+}
+
+/* Desktop: ≥1200px */
+@media (min-width: 1200px) {
   .main-container {
-    flex-direction: column;
-  }
-
-  .branding-section {
-    flex: none;
-    padding: 2rem;
-    border-right: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  .brand-name {
-    font-size: 2.75rem;
-  }
-
-  .brand-features {
     flex-direction: row;
+    align-items: stretch;
     justify-content: center;
-    flex-wrap: wrap;
-    max-width: none;
-  }
-
-  .feature-item {
-    font-size: 0.8rem;
-  }
-}
-
-@media (max-width: 768px) {
-  .login-container {
-    padding: 2.5rem;
-    margin: 1rem;
-    border-radius: var(--radius-lg);
-  }
-
-  .date-input-group {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    height: 100vh;
   }
 
   .branding-section {
-    padding: 1.5rem;
-  }
-
-  .brand-name {
-    font-size: 2.25rem;
-  }
-
-  .logo-icon {
-    width: 72px;
-    height: 72px;
-  }
-
-  .logo-icon svg {
-    width: 36px;
-    height: 36px;
-  }
-
-  .brand-features {
+    flex: 1;
+    order: 1;
+    display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 4rem;
+    text-align: left;
+  }
+
+  .login-section {
+    flex: 1;
+    order: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem;
+  }
+
+  .login-container {
+    max-width: 450px;
+    padding: 3rem;
   }
 }
 
-@media (max-width: 480px) {
+/* ====== DESKTOP (>1200px) ====== */
+@media (min-width: 1200px) {
+  .main-container {
+    display: flex;
+    flex-direction: row;
+    max-width: 1400px;
+    margin: 0 auto;
+    height: 100vh;
+  }
+
+  .branding-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 4rem;
+    text-align: left;
+  }
+
+  .login-section {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 4rem;
+  }
+
   .login-container {
-    padding: 2rem;
+    max-width: 480px;
+    width: 100%;
+    padding: 3rem;
+  }
+}
+
+/* ====== MOBILE & TABLET (≤1200px) → COMPLETELY DIFFERENT LAYOUT ====== */
+@media (max-width: 1199px) {
+  .main-container {
+    display: block;
+    width: 100%;
+    padding: 1rem;
+    height: auto;
+  }
+
+  .branding-section {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 1rem;
+    padding: 1rem;
+  }
+
+  .branding-section .brand-features {
+    display: none; 
+  }
+
+  .login-section {
+    width: 100%;
+    display: block;
+    padding: 1rem;
+  }
+
+  .login-container {
+    max-width: 100%;
+    width: 100%;
+    padding: 2rem 1rem;
+    margin: 0 auto;
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
   }
 
   .login-header h2 {
-    font-size: 1.875rem;
+    font-size: 1.8rem;
+  }
+}
+
+/* EXTENDED ULTRA-WIDE DESKTOP (≥1400px and up) */
+@media (min-width: 1400px) {
+  .main-container {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .branding-section {
+    justify-content: flex-start; 
+    padding-left: 6rem; 
+  }
+
+  .login-section {
+    justify-content: flex-end; 
+    padding-right: 6rem; 
+  }
+}
+
+/* ==== ULTRA SMALL SCREENS (≤430px) ==== */
+@media (max-width: 430px) {
+  .main-container {
+    padding: 0.5rem;
+  }
+
+  .branding-section {
+    padding: 0.5rem;
+  }
+
+  .login-section {
+    padding: 0.5rem;
+  }
+
+  .login-container {
+    padding: 1rem;
+    max-width: 100%;
+  }
+
+  .brand-name {
+    font-size: 1.5rem;
+  }
+
+  .brand-tagline {
+    font-size: 1rem;
+  }
+
+  .login-header h2 {
+    font-size: 1.4rem;
   }
 
   .input-wrapper input,
   .input-wrapper select {
-    padding: 1rem 1rem 1rem 2.75rem;
-  }
-
-  .input-wrapper select {
-    padding-left: 1rem;
+    padding: 0.75rem;
+    font-size: 0.9rem;
   }
 
   .login-button {
-    padding: 1rem 1.5rem;
+    padding: 0.75rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* ==== FIX INPUT ICON OVERLAP ON SMALL SCREENS (≤430px) ==== */
+@media (max-width: 430px) {
+  .input-wrapper {
+    position: relative;
   }
 
-  .brand-name {
-    font-size: 2rem;
+  .input-wrapper input {
+    padding: 0.75rem 0.75rem 0.75rem 2.75rem; /* soldaki padding biraz arttırıldı */
+    font-size: 0.9rem;
+  }
+
+  .input-icon {
+    left: 0.75rem; /* ikonu sola biraz kaydır */
+    width: 18px;
+    height: 18px;
   }
 }
