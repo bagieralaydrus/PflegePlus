@@ -97,6 +97,7 @@
     </div>
 
     <!-- Transfer Request Form -->
+    <!-- Transfer Request Form - FIXED VERSION -->
     <div class="modern-card">
       <h3>Neue Anfrage erstellen</h3>
       <form id="transferRequestForm" class="modern-form">
@@ -107,7 +108,7 @@
           </div>
           <div class="form-group">
             <label for="requestedLocation">Gewünschter Standort:</label>
-            <select id="requestedLocation" required>
+            <select id="requestedLocation" name="requestedLocation" required>
               <option value="">-- Standort wählen --</option>
               <option value="Krefeld">Krefeld</option>
               <option value="Mönchengladbach">Mönchengladbach</option>
@@ -117,12 +118,12 @@
 
         <div class="form-group">
           <label for="transferReason">Grund für den Standortwechsel:</label>
-          <textarea id="transferReason" placeholder="Bitte erläutern Sie den Grund für Ihren Wunsch nach einem Standortwechsel..." required rows="4"></textarea>
+          <textarea id="transferReason" name="transferReason" placeholder="Bitte erläutern Sie den Grund für Ihren Wunsch nach einem Standortwechsel..." required rows="4"></textarea>
         </div>
 
         <div class="form-group">
           <label for="priority">Dringlichkeit:</label>
-          <select id="priority" required>
+          <select id="priority" name="priority" required>
             <option value="normal">Normal</option>
             <option value="high">Hoch</option>
             <option value="urgent">Dringend</option>
@@ -374,20 +375,37 @@
       return texts[priority] || 'Normal';
     }
 
-    // ========== FORM SUBMISSION ==========
+// ========== FORM SUBMISSION - FIXED VERSION ==========
     document.getElementById('transferRequestForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
       const formData = new FormData(e.target);
+
+      // Debug: Log all form data
+      console.log('Form data being sent:');
+      for (let [key, value] of formData.entries()) {
+        console.log(key, value);
+      }
+
       const requestData = {
         patientId: patientId,
         currentStandort: patientData.currentLocation,
         requestedStandort: formData.get('requestedLocation'),
         reason: formData.get('transferReason'),
-        priority: formData.get('priority'),
-        requesterType: 'patient', // Could be 'angehoerige' if implemented
-        requesterId: patientId
+        prioritaet: formData.get('priority'), // Fixed: was 'priority', should be 'prioritaet'
+        requesterType: 'patient',
+        requesterId: patientId,
+        requesterName: patientData.fullName || patientData.username || 'Patient' // Added this required field
       };
+
+      // Validate required fields on frontend
+      if (!requestData.requestedStandort || !requestData.reason || !requestData.requesterName) {
+        showNotification('Bitte füllen Sie alle Pflichtfelder aus', 'error');
+        return;
+      }
+
+      // Debug: Log the request data
+      console.log('Request data being sent:', requestData);
 
       try {
         const response = await fetch('/api/patient/transfer-requests', {

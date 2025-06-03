@@ -92,8 +92,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ========== EVENT LISTENERS ==========
     function setupEventListeners() {
-        // Transfer form submission
-        document.getElementById('adminTransferForm').addEventListener('submit', handleTransferSubmission);
+        // Setup transfer form submission
+        setupTransferFormSubmission();
     }
 
     // ========== NAVIGATION FUNCTIONS ==========
@@ -101,7 +101,6 @@ document.addEventListener('DOMContentLoaded', () => {
         hideAllSections();
         document.getElementById('transferSection').style.display = 'block';
         loadTransferData();
-        loadPatientsList();
     };
 
     window.showStatisticsSection = function() {
@@ -111,13 +110,24 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.showTransferForm = function() {
+        console.log('Opening transfer form...');
         document.getElementById('transferForm').style.display = 'block';
-        loadPatientsList();
+
+        // Initialize patient search when form opens
+        setTimeout(() => {
+            initializePatientSearch();
+        }, 100);
     };
 
     window.hideTransferForm = function() {
         document.getElementById('transferForm').style.display = 'none';
         document.getElementById('adminTransferForm').reset();
+
+        // Clear search
+        const searchInput = document.getElementById('transferPatientSearch');
+        const hiddenInput = document.getElementById('transferPatientId');
+        if (searchInput) searchInput.value = '';
+        if (hiddenInput) hiddenInput.value = '';
     };
 
     function hideAllSections() {
@@ -133,12 +143,157 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // ========== PATIENT SEARCH ==========
+    function initializePatientSearch() {
+        console.log('Initializing patient search...');
+
+        let patients = [];
+
+        // Load patients when search is initialized
+        fetch('/api/patients')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                patients = data;
+                console.log('Loaded', patients.length, 'patients for search');
+            })
+            .catch(error => {
+                console.error('Error loading patients:', error);
+                showNotification('Fehler beim Laden der Patientenliste', 'error');
+            });
+
+        const searchInput = document.getElementById('transferPatientSearch');
+        const resultsContainer = document.getElementById('patientSearchResults');
+
+        if (!searchInput || !resultsContainer) {
+            console.log('Search elements not found');
+            return;
+        }
+
+        // Remove old event listeners by cloning the element
+        const newSearchInput = searchInput.cloneNode(true);
+        searchInput.parentNode.replaceChild(newSearchInput, searchInput);
+
+        // Search when user types
+        newSearchInput.addEventListener('input', function(e) {
+            const query = e.target.value.trim();
+
+            if (query.length < 2) {
+                resultsContainer.style.display = 'none';
+                return;
+            }
+
+            // Filter patients
+            const filtered = patients.filter(patient => {
+                const fullName = `${patient.vorname} ${patient.nachname}`.toLowerCase();
+                return fullName.includes(query.toLowerCase());
+            });
+
+            // Show results
+            if (filtered.length === 0) {
+                resultsContainer.innerHTML = '<div class="no-results">Keine Patienten gefunden</div>';
+            } else {
+                resultsContainer.innerHTML = filtered.map(patient => `
+                    <div class="search-result-item" onclick="selectPatient(${patient.id}, '${patient.vorname} ${patient.nachname}')">
+                        <div class="patient-name">${patient.vorname} ${patient.nachname}</div>
+                        <div class="patient-details">ID: ${patient.id}</div>
+                    </div>
+                `).join('');
+            }
+
+            resultsContainer.style.display = 'block';
+        });
+
+        // Hide results when clicking outside
+        newSearchInput.addEventListener('blur', function() {
+            setTimeout(() => {
+                resultsContainer.style.display = 'none';
+            }, 200);
+        });
+    }
+
+    // Global function to select a patient
+    window.selectPatient = function(id, name) {
+        document.getElementById('transferPatientSearch').value = name;
+        document.getElementById('transferPatientId').value = id;
+        document.getElementById('patientSearchResults').style.display = 'none';
+        console.log('Selected patient:', id, name);
+    };
+
+    // ========== FORM SUBMISSION ==========
+    function setupTransferFormSubmission() {
+        const form = document.getElementById('adminTransferForm');
+        if (!form) {
+            console.log('Transfer form not found');
+            return;
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            console.log('Form submitted');
+
+            const patientId = document.getElementById('transferPatientId').value;
+            const newLocation = document.getElementById('newLocation').value;
+            const reason = document.getElementById('transferReason').value;
+
+            console.log('Form data:', { patientId, newLocation, reason });
+
+            if (!patientId) {
+                showNotification('Bitte wählen Sie einen Patienten aus', 'error');
+                return;
+            }
+
+            if (!newLocation) {
+                showNotification('Bitte wählen Sie einen neuen Standort', 'error');
+                return;
+            }
+
+            const transferData = {
+                patientId: patientId,
+                newLocation: newLocation,
+                reason: reason || 'Admin Transfer',
+                adminId: adminId
+            };
+
+            try {
+                showLoadingState();
+
+                const response = await fetch('/api/admin/transfers', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(transferData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showNotification('Transfer erfolgreich durchgeführt', 'success');
+                    hideTransferForm();
+                    await loadTransferData();
+                    await loadDashboardData();
+                } else {
+                    throw new Error(result.message || 'Transfer failed');
+                }
+            } catch (error) {
+                console.error('Transfer error:', error);
+                showNotification('Fehler beim Transfer: ' + error.message, 'error');
+            } finally {
+                hideLoadingState();
+            }
+        });
+    }
+
     // ========== DATA LOADING FUNCTIONS ==========
     async function loadDashboardData() {
         try {
             showLoadingState();
 
-            // Load admin dashboard data
             const response = await fetch('/api/admin/dashboard');
             if (!response.ok) throw new Error('Failed to load dashboard data');
 
@@ -236,7 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateRecentTransfersTable(transfersData.transfers || []);
             }
 
-            // Load pending requests (if implemented)
+            // Load pending requests
             const requestsResponse = await fetch('/api/admin/transfers/requests');
             if (requestsResponse.ok) {
                 const requestsData = await requestsResponse.json();
@@ -244,67 +399,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Transfer data loading error:', error);
-        }
-    }
-
-    async function loadPatientsList() {
-        try {
-            const response = await fetch('/api/patients');
-            if (!response.ok) throw new Error('Failed to load patients');
-
-            const patients = await response.json();
-            const select = document.getElementById('transferPatient');
-
-            select.innerHTML = '<option value="">-- Patient wählen --</option>';
-            patients.forEach(patient => {
-                const option = document.createElement('option');
-                option.value = patient.id;
-                option.textContent = `${patient.vorname} ${patient.nachname}`;
-                select.appendChild(option);
-            });
-        } catch (error) {
-            console.error('Patients loading error:', error);
-            showNotification('Fehler beim Laden der Patientenliste', 'error');
-        }
-    }
-
-    async function handleTransferSubmission(event) {
-        event.preventDefault();
-
-        const formData = new FormData(event.target);
-        const transferData = {
-            patientId: formData.get('transferPatient'),
-            newLocation: formData.get('newLocation'),
-            reason: formData.get('transferReason') || 'Admin Transfer',
-            adminId: adminId
-        };
-
-        try {
-            showLoadingState();
-
-            const response = await fetch('/api/admin/transfers', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(transferData)
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                showNotification('Transfer erfolgreich durchgeführt', 'success');
-                hideTransferForm();
-                await loadTransferData();
-                await loadDashboardData(); // Refresh dashboard stats
-            } else {
-                throw new Error(result.message || 'Transfer failed');
-            }
-        } catch (error) {
-            console.error('Transfer error:', error);
-            showNotification('Fehler beim Transfer: ' + error.message, 'error');
-        } finally {
-            hideLoadingState();
         }
     }
 
@@ -433,7 +527,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ========== UTILITY FUNCTIONS ==========
     function showLoadingState() {
-        // Add loading indicators
         document.querySelectorAll('.stat-card p').forEach(el => {
             if (el.textContent === '—') {
                 el.textContent = '...';
@@ -442,7 +535,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function hideLoadingState() {
-        // Remove loading indicators if still present
         document.querySelectorAll('.stat-card p').forEach(el => {
             if (el.textContent === '...') {
                 el.textContent = '—';
@@ -458,14 +550,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const notificationArea = document.getElementById('notificationArea');
         notificationArea.appendChild(notification);
 
-        // Auto remove after 5 seconds
         setTimeout(() => {
             if (notification.parentNode) {
                 notification.parentNode.removeChild(notification);
             }
         }, 5000);
 
-        // Click to dismiss
         notification.addEventListener('click', () => {
             if (notification.parentNode) {
                 notification.parentNode.removeChild(notification);
@@ -475,12 +565,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ========== AUTO REFRESH ==========
     function setupAutoRefresh() {
-        // Refresh dashboard data every 2 minutes
         setInterval(async () => {
             await loadDashboardData();
         }, 120000);
 
-        // Refresh transfer data every 1 minute when on transfer section
         setInterval(async () => {
             const transferSection = document.getElementById('transferSection');
             if (transferSection.style.display !== 'none') {
@@ -517,7 +605,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.rejectTransferRequest = async function(requestId) {
         const reason = prompt('Grund für die Ablehnung (optional):');
-        if (reason === null) return; // User cancelled
+        if (reason === null) return;
 
         try {
             const response = await fetch(`/api/admin/transfers/requests/${requestId}/reject`, {

@@ -79,23 +79,78 @@ body {
   justify-content: center;
   flex-wrap: wrap;
 }
+/* Enhanced card styling with text overflow fix */
 .card {
   background: rgba(255,255,255,0.95);
   padding: 1.25rem 1.5rem;
-  border-radius: 8px;
+  border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   flex: 1;
   min-width: 200px;
-  max-width: 250px;
+  max-width: 280px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-left: 4px solid transparent;
+  /* Fix text overflow */
+  overflow: hidden;
+  word-wrap: break-word;
+  hyphens: auto;
 }
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+.card:nth-child(1) {
+  border-left-color: #28a745;
+}
+
+.card:nth-child(2) {
+  border-left-color: #2d7ff9;
+}
+
+.card:nth-child(3) {
+  border-left-color: #ffc107;
+}
+
 .card h3 {
   font-size: 1rem;
   color: #555;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-weight: 500;
+  line-height: 1.3;
+  word-wrap: break-word;
+  hyphens: auto;
 }
+
+/* Fixed card text with responsive sizing */
 .card p {
-  font-size: 2rem;
+  font-size: clamp(1.2rem, 4vw, 1.5rem);
   color: #2d7ff9;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.2;
+  /* Critical fixes for text overflow */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  word-break: break-word;
+  min-height: 1.8rem;
+  display: flex;
+  align-items: center;
+}
+
+/* Special handling for location text */
+#currentLocation {
+  font-size: clamp(1.1rem, 3.5vw, 1.4rem);
+  hyphens: manual;
+}
+
+/* Task count styling */
+#todayTaskCount {
+  font-size: clamp(1.6rem, 5vw, 2rem) !important;
+  font-weight: bold;
+  text-align: center;
 }
 
 /* ====== Tabelle ====== */
@@ -211,9 +266,35 @@ body {
 
 /* ====== Responsive ====== */
 @media (max-width: 768px) {
-  .cards { flex-direction: column; align-items: center; }
+  .cards {
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .card {
+    max-width: 100%;
+    width: 100%;
+    max-width: 320px; /* Wider for German city names */
+  }
+
+  .card p {
+    font-size: clamp(1.2rem, 5vw, 1.5rem);
+    text-align: center;
+  }
 }
 
+@media (max-width: 480px) {
+  .card {
+    padding: 1rem;
+    max-width: calc(100vw - 2rem);
+  }
+
+  .card p {
+    font-size: clamp(1.1rem, 5vw, 1.3rem);
+    line-height: 1.3;
+  }
+}
 
 body {
   font-family: 'Inter', sans-serif;

@@ -15,23 +15,31 @@ app.use(express.static('WEB SEITE/LOGIN')); // Serve your static files
 app.use('/pflegekraft', express.static('WEB SEITE/Pflegekraft')); // Serve Pflegekraft files
 
 
-// PostgreSQL connection
-// Replace your existing PostgreSQL connection with this:
-
+// Enhanced PostgreSQL connection with proper UTF-8 handling
 const pool = new Pool({
     user: 'postgres',
     host: 'localhost',
     database: 'pflegeplus',
     password: 'bagier002',
     port: 5432,
-    // Add these options for proper UTF-8 handling
+    // Enhanced UTF-8 configuration
     client_encoding: 'UTF8',
-    application_name: 'pflegevision-app'
+    application_name: 'pflegevision-app',
+    // Additional connection options for UTF-8
+    connectionString: `postgresql://postgres:bagier002@localhost:5432/pflegeplus?client_encoding=UTF8`,
+    ssl: false
 });
 
-// Also add this to ensure UTF-8 encoding for new connections
+// Enhanced connection handling with UTF-8 setup
 pool.on('connect', (client) => {
+    // Set UTF-8 encoding for each connection
     client.query('SET client_encoding TO UTF8');
+    client.query('SET timezone TO \'Europe/Berlin\'');
+    //console.log('Database connection established with UTF-8 encoding');
+});
+
+pool.on('error', (err) => {
+    console.error('Database pool error:', err);
 });
 
 // Test database connection
@@ -449,19 +457,132 @@ app.post('/api/assignments', async (req, res) => {
 // Get patients list for assignment form
 app.get('/api/patients', async (req, res) => {
     try {
+        // Force UTF-8 encoding for this query
+        await pool.query('SET client_encoding TO UTF8');
+
         const query = `
-            SELECT id, vorname, nachname 
+            SELECT 
+                id, 
+                vorname, 
+                nachname,
+                standort,
+                zimmer_nummer
             FROM patienten 
-            ORDER BY nachname, vorname
+            WHERE status = 'active'
+            ORDER BY nachname COLLATE "C", vorname COLLATE "C"
         `;
+
         const result = await pool.query(query);
 
+        // Ensure proper UTF-8 encoding in response
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.json(result.rows);
+
     } catch (error) {
         console.error('Patients API error:', error);
         res.status(500).json({
             success: false,
             message: 'Error loading patients'
+        });
+    }
+});
+app.post('/api/admin/fix-encoding', async (req, res) => {
+    try {
+        // Set UTF-8 encoding
+        await pool.query('SET client_encoding TO UTF8');
+
+        // Fix common German character encoding issues
+        const fixes = [
+            { from: 'Ã–', to: 'Ö' },
+            { from: 'Ã¼', to: 'ü' },
+            { from: 'Ã¤', to: 'ä' },
+            { from: 'ÃŸ', to: 'ß' },
+            { from: 'Ã„', to: 'Ä' },
+            { from: 'Ãœ', to: 'Ü' }
+        ];
+
+        let totalFixed = 0;
+
+        for (const fix of fixes) {
+            // Fix patienten table
+            const patientResult = await pool.query(`
+                UPDATE patienten 
+                SET 
+                    vorname = REPLACE(vorname, $1, $2),
+                    nachname = REPLACE(nachname, $1, $2)
+                WHERE vorname LIKE '%' || $1 || '%' OR nachname LIKE '%' || $1 || '%'
+            `, [fix.from, fix.to]);
+
+            // Fix mitarbeiter table
+            const mitarbeiterResult = await pool.query(`
+                UPDATE mitarbeiter 
+                SET 
+                    vorname = REPLACE(vorname, $1, $2),
+                    nachname = REPLACE(nachname, $1, $2),
+                    benutzername = REPLACE(benutzername, $1, $2)
+                WHERE vorname LIKE '%' || $1 || '%' 
+                   OR nachname LIKE '%' || $1 || '%'
+                   OR benutzername LIKE '%' || $1 || '%'
+            `, [fix.from, fix.to]);
+
+            totalFixed += (patientResult.rowCount || 0) + (mitarbeiterResult.rowCount || 0);
+        }
+
+        res.json({
+            success: true,
+            message: `UTF-8 Encoding repariert. ${totalFixed} Datensätze bearbeitet.`,
+            fixedRecords: totalFixed
+        });
+
+    } catch (error) {
+        console.error('Encoding fix error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler beim Reparieren der Zeichenkodierung: ' + error.message
+        });
+    }
+});
+
+app.get('/api/patients/search', async (req, res) => {
+    const { q } = req.query;
+
+    if (!q || q.length < 2) {
+        return res.json([]);
+    }
+
+    try {
+        // Ensure UTF-8 encoding
+        await pool.query('SET client_encoding TO UTF8');
+
+        const searchQuery = `
+            SELECT 
+                id, 
+                vorname, 
+                nachname,
+                standort,
+                zimmer_nummer
+            FROM patienten 
+            WHERE (
+                LOWER(vorname) LIKE LOWER($1) OR 
+                LOWER(nachname) LIKE LOWER($1) OR 
+                LOWER(vorname || ' ' || nachname) LIKE LOWER($1)
+            )
+            AND status = 'active'
+            ORDER BY nachname, vorname
+            LIMIT 20
+        `;
+
+        const searchTerm = `%${q}%`;
+        const result = await pool.query(searchQuery, [searchTerm]);
+
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.json(result.rows);
+
+    } catch (error) {
+        console.error('Patient search error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler bei der Patientensuche'
         });
     }
 });
@@ -573,30 +694,38 @@ app.get('/api/patient/dashboard/:patientId', async (req, res) => {
 });
 
 // Create a new transfer request - FIXED
+// Create a new transfer request - FIXED VALIDATION
 app.post('/api/patient/transfer-requests', async (req, res) => {
     const {
         patientId,
         currentStandort,
         requestedStandort,
         reason,
-        prioritaet,
+        prioritaet, // Note: using German spelling to match database
         requesterType,
         requesterId,
         requesterName
     } = req.body;
 
     try {
-        // Validate required fields
-        if (!patientId || !requestedStandort || !reason || !requesterName) {
+        // Enhanced validation with better error messages
+        const missingFields = [];
+
+        if (!patientId) missingFields.push('Patient ID');
+        if (!requestedStandort) missingFields.push('Gewünschter Standort');
+        if (!reason || reason.trim().length === 0) missingFields.push('Grund');
+        if (!requesterName) missingFields.push('Requester Name');
+
+        if (missingFields.length > 0) {
             return res.status(400).json({
                 success: false,
-                message: 'Alle Pflichtfelder müssen ausgefüllt werden'
+                message: `Fehlende Pflichtfelder: ${missingFields.join(', ')}`
             });
         }
 
         // Check if patient exists
         const patientCheck = await pool.query(
-            'SELECT standort FROM patienten WHERE id = $1',
+            'SELECT standort, vorname, nachname FROM patienten WHERE id = $1',
             [patientId]
         );
 
@@ -634,19 +763,19 @@ app.post('/api/patient/transfer-requests', async (req, res) => {
         // Create the transfer request using correct German column names
         const insertQuery = `
             INSERT INTO transfer_requests (
-                patient_id, 
-                requester_type, 
-                requester_id, 
+                patient_id,
+                requester_type,
+                requester_id,
                 requester_name,
-                current_standort, 
-                gewuenschter_standort, 
-                grund, 
-                prioritaet, 
+                current_standort,
+                gewuenschter_standort,
+                grund,
+                prioritaet,
                 status,
                 erstellt_am
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', NOW())
-            RETURNING *
+                RETURNING *
         `;
 
         const result = await pool.query(insertQuery, [
@@ -656,35 +785,8 @@ app.post('/api/patient/transfer-requests', async (req, res) => {
             requesterName,
             actualCurrentStandort,
             requestedStandort,
-            reason,
+            reason.trim(),
             prioritaet || 'normal'
-        ]);
-
-        // Create notification for administrators
-        const adminNotificationQuery = `
-            INSERT INTO benachrichtigungen (
-                patient_id, 
-                typ, 
-                titel, 
-                nachricht, 
-                prioritaet,
-                erstellt_am
-            )
-            SELECT 
-                $1,
-                'transfer_request',
-                'Neue Transfer-Anfrage',
-                $2,
-                $3,
-                NOW()
-        `;
-
-        const notificationMessage = `${requesterType === 'patient' ? 'Patient' : 'Angehörige'} hat eine Transfer-Anfrage von ${actualCurrentStandort} nach ${requestedStandort} gestellt.`;
-
-        await pool.query(adminNotificationQuery, [
-            patientId,
-            notificationMessage,
-            prioritaet === 'urgent' ? 'hoch' : 'normal'
         ]);
 
         res.json({
@@ -697,7 +799,7 @@ app.post('/api/patient/transfer-requests', async (req, res) => {
         console.error('Transfer request creation error:', error);
         res.status(500).json({
             success: false,
-            message: 'Fehler beim Erstellen der Transfer-Anfrage: ' + error.message
+            message: 'Serverfehler beim Erstellen der Transfer-Anfrage: ' + error.message
         });
     }
 });
@@ -1203,7 +1305,7 @@ app.post('/api/admin/transfers', async (req, res) => {
         // Update patient location
         const updatePatientQuery = `
             UPDATE patienten 
-            SET standort = $1, updated_at = NOW()
+            SET standort = $1, aufnahmedatum = NOW()
             WHERE id = $2
         `;
         await pool.query(updatePatientQuery, [newLocation, patientId]);
