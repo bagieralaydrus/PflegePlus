@@ -12,7 +12,7 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
-// Particle CLASS
+// Particle CLASS - MADE MORE VISIBLE
 class Particle {
   constructor() {
     this.reset();
@@ -20,10 +20,10 @@ class Particle {
   reset() {
     this.x = Math.random() * canvas.width;
     this.y = Math.random() * canvas.height;
-    this.size = Math.random() * 3 + 1;
+    this.size = Math.random() * 4 + 2; // Made particles bigger (2-6px instead of 1-4px)
     this.speedX = (Math.random() - 0.5) * 0.7;
     this.speedY = (Math.random() - 0.5) * 0.7;
-    this.alpha = Math.random() * 0.5 + 0.3;
+    this.alpha = Math.random() * 0.7 + 0.3; // Made particles more opaque
   }
   update() {
     this.x += this.speedX;
@@ -33,10 +33,16 @@ class Particle {
     }
   }
   draw() {
+    // Make particles more visible with brighter color and glow effect
+    ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+    ctx.shadowBlur = 10;
     ctx.fillStyle = `rgba(255, 255, 255, ${this.alpha})`;
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
     ctx.fill();
+
+    // Reset shadow for next particle
+    ctx.shadowBlur = 0;
   }
 }
 
@@ -49,7 +55,7 @@ function initParticles() {
 }
 initParticles();
 
-// ANIMATION PART :)
+// ANIMATION PART :) - Added console log to verify it's running
 function animateParticles() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   particlesArray.forEach(p => {
@@ -60,6 +66,9 @@ function animateParticles() {
 }
 animateParticles();
 
+// Add a console log to verify particles are starting
+console.log('✨ Particle background initialized with', numberOfParticles, 'particles');
+
 // ——— Form Section ———
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('loginForm');
@@ -67,6 +76,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   form.addEventListener('submit', handleFormSubmission);
   setupFormValidation();
+
+  console.log('🚀 Login form initialized');
 });
 
 // Enhanced form submission with better UX

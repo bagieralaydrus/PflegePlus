@@ -4,22 +4,200 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PflegeVision - Anmeldung</title>
-  <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* RESET */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0d1b2a;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    /* CANVAS - SIMPLE AS FUCK */
+    #bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      background: linear-gradient(135deg, #0d1b2a 0%, #1e3a8a 50%, #1e40af 100%);
+    }
+
+    /* EVERYTHING ELSE ON TOP */
+    .container {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      height: 100vh;
+    }
+
+    /* LEFT SIDE - BRANDING */
+    .left {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      background: rgba(255,255,255,0.05);
+    }
+
+    .logo-area {
+      text-align: center;
+    }
+
+    .logo-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 20px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .brand-name {
+      font-size: 3rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: white;
+    }
+
+    .brand-tagline {
+      font-size: 1.2rem;
+      opacity: 0.9;
+    }
+
+    /* RIGHT SIDE - LOGIN */
+    .right {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .login-box {
+      background: white;
+      padding: 3rem;
+      border-radius: 16px;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .login-header h2 {
+      font-size: 2rem;
+      color: #1e293b;
+      margin-bottom: 0.5rem;
+    }
+
+    .login-header p {
+      color: #64748b;
+    }
+
+    /* FORM */
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: #1e293b;
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    .input-wrapper input,
+    .input-wrapper select {
+      width: 100%;
+      padding: 1rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 1rem;
+      transition: all 0.3s;
+    }
+
+    .input-wrapper input:focus,
+    .input-wrapper select:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+    }
+
+    .date-group {
+      display: grid;
+      grid-template-columns: 1fr 2fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 1rem;
+      background: linear-gradient(135deg, #2563eb, #3b82f6);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 1rem;
+    }
+
+    .login-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(37,99,235,0.3);
+    }
+
+    /* MOBILE */
+    @media (max-width: 768px) {
+      .container {
+        flex-direction: column;
+      }
+      .left {
+        flex: none;
+        padding: 1rem;
+      }
+      .brand-name {
+        font-size: 2rem;
+      }
+      .date-group {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+      }
+    }
+  </style>
 </head>
 <body>
-<!-- PARTICLE BACKGROUND CANVAS (from your groupmates) -->
+<!-- CANVAS FOR PARTICLES -->
 <canvas id="bg"></canvas>
 
-<!-- MAIN CONTAINER -->
-<div class="main-container">
-  <!-- BRANDING SECTION -->
-  <div class="branding-section">
-    <div class="logo-container">
+<!-- MAIN CONTENT -->
+<div class="container">
+  <!-- LEFT SIDE -->
+  <div class="left">
+    <div class="logo-area">
       <div class="logo-icon">
-        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z" fill="currentColor"/>
-          <path d="M12 12C14.21 12 16 13.79 16 16C16 18.21 14.21 20 12 20C9.79 20 8 18.21 8 16C8 13.79 9.79 12 12 12Z" fill="currentColor" opacity="0.7"/>
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="white">
+          <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z"/>
         </svg>
       </div>
       <h1 class="brand-name">PflegeVision</h1>
@@ -27,106 +205,165 @@
     </div>
   </div>
 
-  <!-- LOGIN SECTION -->
-  <div class="login-section">
-    <div class="login-container">
+  <!-- RIGHT SIDE -->
+  <div class="right">
+    <div class="login-box">
       <div class="login-header">
         <h2>Willkommen zurück</h2>
         <p>Melden Sie sich mit Ihren Zugangsdaten an</p>
       </div>
 
-      <form id="loginForm" class="login-form">
+      <form id="loginForm">
         <div class="form-group">
           <label for="username">Benutzername</label>
           <div class="input-wrapper">
-            <svg class="input-icon" viewBox="0 0 24 24" fill="none">
-              <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <input
-                    type="text"
-                    id="username"
-                    name="username"
-                    placeholder="Ihr Benutzername"
-                    required
-                    autocomplete="username"
-            >
+            <input type="text" id="username" name="username" placeholder="Ihr Benutzername" required>
           </div>
         </div>
 
         <div class="form-group">
           <label>Geburtsdatum</label>
-          <div class="date-input-group">
-            <div class="input-wrapper">
-              <input
-                      type="number"
-                      id="day"
-                      name="day"
-                      placeholder="Tag"
-                      min="1"
-                      max="31"
-                      required
-              >
-            </div>
-            <div class="input-wrapper">
-              <select id="month" name="month" required>
-                <option value="">Monat</option>
-                <option value="01">Januar</option>
-                <option value="02">Februar</option>
-                <option value="03">März</option>
-                <option value="04">April</option>
-                <option value="05">Mai</option>
-                <option value="06">Juni</option>
-                <option value="07">Juli</option>
-                <option value="08">August</option>
-                <option value="09">September</option>
-                <option value="10">Oktober</option>
-                <option value="11">November</option>
-                <option value="12">Dezember</option>
-              </select>
-            </div>
-            <div class="input-wrapper">
-              <input
-                      type="number"
-                      id="year"
-                      name="year"
-                      placeholder="Jahr"
-                      min="1900"
-                      max="2010"
-                      required
-              >
-            </div>
+          <div class="date-group">
+            <input type="number" id="day" placeholder="Tag" min="1" max="31" required>
+            <select id="month" required>
+              <option value="">Monat</option>
+              <option value="01">Januar</option>
+              <option value="02">Februar</option>
+              <option value="03">März</option>
+              <option value="04">April</option>
+              <option value="05">Mai</option>
+              <option value="06">Juni</option>
+              <option value="07">Juli</option>
+              <option value="08">August</option>
+              <option value="09">September</option>
+              <option value="10">Oktober</option>
+              <option value="11">November</option>
+              <option value="12">Dezember</option>
+            </select>
+            <input type="number" id="year" placeholder="Jahr" min="1900" max="2010" required>
           </div>
         </div>
 
-        <button type="submit" class="login-button">
-          <span class="button-text">Anmelden</span>
-          <svg class="button-icon" viewBox="0 0 24 24" fill="none">
-            <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
+        <button type="submit" class="login-btn">Anmelden</button>
       </form>
-
-      <div class="login-footer">
-        <div class="security-badge">
-          <svg viewBox="0 0 24 24" fill="none">
-            <path d="M12 22S8 18 8 13V7L12 5L16 7V13C16 18 12 22 12 22Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <span>Sicher verschlüsselt</span>
-        </div>
-      </div>
     </div>
   </div>
 </div>
 
-<!-- LOADING OVERLAY -->
-<div id="loadingOverlay" class="loading-overlay">
-  <div class="loading-spinner">
-    <div class="spinner"></div>
-    <p>Anmeldung wird verarbeitet...</p>
-  </div>
-</div>
+<script>
+  // === PARTICLES - SUPER SIMPLE VERSION ===
+  console.log('🚀 Starting particles...');
 
-<script src="script.js"></script>
+  const canvas = document.getElementById('bg');
+  const ctx = canvas.getContext('2d');
+
+  // Set canvas size
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    console.log('Canvas size:', canvas.width, 'x', canvas.height);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Particle array
+  const particles = [];
+  const particleCount = 100;
+
+  // Create particles
+  for (let i = 0; i < particleCount; i++) {
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      size: Math.random() * 5 + 2,
+      speedX: (Math.random() - 0.5) * 2,
+      speedY: (Math.random() - 0.5) * 2,
+      opacity: Math.random() * 0.8 + 0.2
+    });
+  }
+
+  console.log('✨ Created', particles.length, 'particles');
+
+  // Animation loop
+  function animate() {
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw particles
+    particles.forEach(particle => {
+      // Update position
+      particle.x += particle.speedX;
+      particle.y += particle.speedY;
+
+      // Wrap around screen
+      if (particle.x < 0) particle.x = canvas.width;
+      if (particle.x > canvas.width) particle.x = 0;
+      if (particle.y < 0) particle.y = canvas.height;
+      if (particle.y > canvas.height) particle.y = 0;
+
+      // Draw particle
+      ctx.fillStyle = `rgba(255, 255, 255, ${particle.opacity})`;
+      ctx.beginPath();
+      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    requestAnimationFrame(animate);
+  }
+
+  // Start animation
+  animate();
+  console.log('🎬 Animation started!');
+
+  // === LOGIN FORM ===
+  document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const username = document.getElementById('username').value.trim();
+    const day = document.getElementById('day').value.padStart(2, '0');
+    const month = document.getElementById('month').value;
+    const year = document.getElementById('year').value;
+
+    if (!username || !day || !month || !year) {
+      alert('Bitte füllen Sie alle Felder aus.');
+      return;
+    }
+
+    const birthdate = `${year}-${month}-${day}`;
+
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, birthdate })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        sessionStorage.setItem('currentUser', JSON.stringify({
+          id: data.user.id,
+          username: data.user.username,
+          type: data.user.type
+        }));
+
+        alert(data.message);
+
+        if (data.user.type === 'mitarbeiter') {
+          window.location.href = '/pflegekraft/dashboard.html';
+        } else if (data.user.type === 'patient') {
+          window.location.href = '/patient/';
+        }
+      } else {
+        alert(data.message || 'Anmeldung fehlgeschlagen');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      alert('Verbindungsfehler. Bitte versuchen Sie es später erneut.');
+    }
+  });
+
+  console.log('🔐 Login form ready!');
+</script>
 </body>
 </html>
