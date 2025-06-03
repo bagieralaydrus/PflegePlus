@@ -194,15 +194,19 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             // Show results
+// Show results - ENHANCED VERSION with current location
             if (filtered.length === 0) {
                 resultsContainer.innerHTML = '<div class="no-results">Keine Patienten gefunden</div>';
             } else {
                 resultsContainer.innerHTML = filtered.map(patient => `
-                    <div class="search-result-item" onclick="selectPatient(${patient.id}, '${patient.vorname} ${patient.nachname}')">
-                        <div class="patient-name">${patient.vorname} ${patient.nachname}</div>
-                        <div class="patient-details">ID: ${patient.id}</div>
-                    </div>
-                `).join('');
+        <div class="search-result-item" onclick="selectPatient(${patient.id}, '${patient.vorname} ${patient.nachname}')">
+            <div class="patient-name">${patient.vorname} ${patient.nachname}</div>
+            <div class="patient-details">
+                ID: ${patient.id} | 
+                Aktuell: ${patient.standort || 'Unbekannt'}
+            </div>
+        </div>
+    `).join('');
             }
 
             resultsContainer.style.display = 'block';
@@ -217,12 +221,60 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Global function to select a patient
-    window.selectPatient = function(id, name) {
+// Global function to select a patient - ENHANCED VERSION
+    // Global function to select a patient - ENHANCED VERSION
+    window.selectPatient = async function(id, name) {
         document.getElementById('transferPatientSearch').value = name;
         document.getElementById('transferPatientId').value = id;
         document.getElementById('patientSearchResults').style.display = 'none';
         console.log('Selected patient:', id, name);
+
+        // Update location dropdown based on patient's current location
+        await updateLocationDropdown(id);
     };
+
+// Add this new function to update the location dropdown
+    async function updateLocationDropdown(patientId) {
+        try {
+            // Get patient's current location
+            const response = await fetch(`/api/patients/${patientId}/location`);
+            if (!response.ok) throw new Error('Failed to get patient location');
+
+            const data = await response.json();
+            const currentLocation = data.currentLocation;
+
+            const locationSelect = document.getElementById('newLocation');
+            const options = locationSelect.querySelectorAll('option');
+
+            // Show/hide options based on current location
+            options.forEach(option => {
+                if (option.value === '') {
+                    // Keep the placeholder option
+                    option.style.display = 'block';
+                } else if (option.value === currentLocation) {
+                    // Hide current location
+                    option.style.display = 'none';
+                } else {
+                    // Show other locations
+                    option.style.display = 'block';
+                }
+            });
+
+            // Reset the dropdown to placeholder
+            locationSelect.value = '';
+
+            console.log(`Patient is currently in ${currentLocation}, showing other options`);
+
+        } catch (error) {
+            console.error('Error updating location dropdown:', error);
+            // If error, show all options
+            const locationSelect = document.getElementById('newLocation');
+            const options = locationSelect.querySelectorAll('option');
+            options.forEach(option => {
+                option.style.display = 'block';
+            });
+        }
+    }
 
     // ========== FORM SUBMISSION ==========
     function setupTransferFormSubmission() {

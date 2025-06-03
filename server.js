@@ -1476,6 +1476,40 @@ app.get('/api/admin/patients', async (req, res) => {
     }
 });
 
+// Get patient's current location for admin transfer form
+app.get('/api/patients/:patientId/location', async (req, res) => {
+    const { patientId } = req.params;
+
+    try {
+        const query = `
+            SELECT standort
+            FROM patienten 
+            WHERE id = $1
+        `;
+
+        const result = await pool.query(query, [patientId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Patient not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            currentLocation: result.rows[0].standort || 'Unbekannt'
+        });
+
+    } catch (error) {
+        console.error('Patient location API error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error getting patient location'
+        });
+    }
+});
+
 // ========== PFLEGEKRAFT MANAGEMENT ENDPOINTS ==========
 
 // Get all pflegekraft for admin management
