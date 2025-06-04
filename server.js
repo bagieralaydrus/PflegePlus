@@ -926,108 +926,6 @@ app.get('/api/admin/transfers/requests', async (req, res) => {
     }
 });
 
-// Approve a transfer request - FIXED
-app.post('/api/admin/transfers/requests/:requestId/approve', async (req, res) => {
-    const { requestId } = req.params;
-    const { adminId, adminResponse } = req.body;
-
-    try {
-        await pool.query('BEGIN');
-
-        // Get request details using correct column names
-        const requestQuery = `
-            SELECT * FROM transfer_requests 
-            WHERE id = $1 AND status = 'pending'
-        `;
-        const requestResult = await pool.query(requestQuery, [requestId]);
-
-        if (requestResult.rows.length === 0) {
-            await pool.query('ROLLBACK');
-            return res.status(404).json({
-                success: false,
-                message: 'Transfer-Anfrage nicht gefunden oder bereits bearbeitet'
-            });
-        }
-
-        const request = requestResult.rows[0];
-
-        // Update patient location
-        const updatePatientQuery = `
-            UPDATE patienten 
-            SET standort = $1
-            WHERE id = $2
-        `;
-        await pool.query(updatePatientQuery, [request.gewuenschter_standort, request.patient_id]);
-
-        // Log the transfer in standort_verlauf
-        const logTransferQuery = `
-            INSERT INTO standort_verlauf (
-                patient_id, 
-                alter_standort, 
-                neuer_standort, 
-                grund, 
-                geaendert_von, 
-                geaendert_am
-            )
-            VALUES ($1, $2, $3, $4, $5, NOW())
-        `;
-        await pool.query(logTransferQuery, [
-            request.patient_id,
-            request.current_standort,
-            request.gewuenschter_standort,
-            `Genehmigter Transfer-Antrag: ${request.grund}`,
-            adminId
-        ]);
-
-        // Update request status using correct German column names
-        const updateRequestQuery = `
-            UPDATE transfer_requests 
-            SET 
-                status = 'approved',
-                admin_response = $1,
-                admin_id = $2,
-                bearbeitet_am = NOW()
-            WHERE id = $3
-            RETURNING *
-        `;
-        const updateResult = await pool.query(updateRequestQuery, [
-            adminResponse || 'Transfer-Anfrage genehmigt und durchgeführt',
-            adminId,
-            requestId
-        ]);
-
-        // Create notification for patient/requester
-        const patientNotificationQuery = `
-            INSERT INTO benachrichtigungen (
-                patient_id,
-                typ,
-                titel,
-                nachricht,
-                prioritaet,
-                erstellt_am
-            )
-            VALUES ($1, 'transfer_approved', 'Transfer genehmigt', $2, 'normal', NOW())
-        `;
-        const notificationMessage = `Ihr Transfer-Antrag von ${request.current_standort} nach ${request.gewuenschter_standort} wurde genehmigt und durchgeführt.`;
-        await pool.query(patientNotificationQuery, [request.patient_id, notificationMessage]);
-
-        await pool.query('COMMIT');
-
-        res.json({
-            success: true,
-            message: 'Transfer-Anfrage genehmigt und durchgeführt',
-            request: updateResult.rows[0]
-        });
-
-    } catch (error) {
-        await pool.query('ROLLBACK');
-        console.error('Transfer request approval error:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Fehler bei der Genehmigung der Transfer-Anfrage: ' + error.message
-        });
-    }
-});
 
 // Reject a transfer request - FIXED
 app.post('/api/admin/transfers/requests/:requestId/reject', async (req, res) => {
@@ -1276,18 +1174,34 @@ app.get('/api/admin/dashboard', async (req, res) => {
 // ========== TRANSFER MANAGEMENT ENDPOINTS - FIXED ==========
 
 // Handle admin-initiated transfers
+// ========== ENHANCED TRANSFER LOGIC WITH AUTO-REASSIGNMENT ==========
+
+// ========== FIXED TRANSFER LOGIC - HANDLES UNIQUE CONSTRAINT ==========
+
+// Replace your existing admin-initiated transfer endpoint in server.js
+
+
+// ========== FIXED APPROVE TRANSFER REQUEST ==========
+
+// ========== SIMPLE TRANSFER FIX - ALWAYS REASSIGN ON LOCATION CHANGE ==========
+
+// Replace your admin transfer endpoint with this simplified version
 app.post('/api/admin/transfers', async (req, res) => {
     const { patientId, newLocation, reason, adminId } = req.body;
 
     try {
-        // Start transaction
         await pool.query('BEGIN');
 
-        // Get current patient location
+        // Get current patient info
         const currentPatientQuery = `
-            SELECT standort, vorname, nachname 
-            FROM patienten 
-            WHERE id = $1
+            SELECT 
+                p.standort, p.vorname, p.nachname,
+                pz.mitarbeiter_id as current_pflegekraft_id,
+                m.vorname || ' ' || m.nachname as current_pflegekraft_name
+            FROM patienten p
+            LEFT JOIN patient_zuweisung pz ON p.id = pz.patient_id AND pz.status = 'active'
+            LEFT JOIN mitarbeiter m ON pz.mitarbeiter_id = m.id
+            WHERE p.id = $1
         `;
         const currentPatient = await pool.query(currentPatientQuery, [patientId]);
 
@@ -1302,53 +1216,311 @@ app.post('/api/admin/transfers', async (req, res) => {
             throw new Error('Patient ist bereits am gewünschten Standort');
         }
 
-        // Update patient location
-        const updatePatientQuery = `
-            UPDATE patienten 
-            SET standort = $1, aufnahmedatum = NOW()
-            WHERE id = $2
+        console.log(`🔄 Transfer: ${patient.vorname} ${patient.nachname}`);
+        console.log(`📍 Von: ${oldLocation} → Nach: ${newLocation}`);
+        console.log(`👨‍⚕️ Alte Pflegekraft: ${patient.current_pflegekraft_name}`);
+
+        // Step 1: Update patient location
+        await pool.query('UPDATE patienten SET standort = $1 WHERE id = $2', [newLocation, patientId]);
+
+        // Step 2: Log transfer
+        await pool.query(
+            'INSERT INTO standort_verlauf (patient_id, alter_standort, neuer_standort, grund, geaendert_von, geaendert_am) VALUES ($1, $2, $3, $4, $5, NOW())',
+            [patientId, oldLocation, newLocation, reason, adminId]
+        );
+
+        // Step 3: ALWAYS find NEW Pflegekraft at destination
+        const findNewPflegekraftQuery = `
+            SELECT 
+                m.id,
+                m.vorname || ' ' || m.nachname as name,
+                COUNT(pz.patient_id) as current_patients
+            FROM mitarbeiter m
+            LEFT JOIN patient_zuweisung pz ON m.id = pz.mitarbeiter_id AND pz.status = 'active'
+            WHERE m.rolle = 'pflegekraft' 
+              AND m.status = 'active'
+              AND m.standort = $1
+              AND m.id != $2  -- Exclude current Pflegekraft to force reassignment
+            GROUP BY m.id, m.vorname, m.nachname
+            HAVING COUNT(pz.patient_id) < 24
+            ORDER BY COUNT(pz.patient_id) ASC, m.id ASC
+            LIMIT 1
         `;
-        await pool.query(updatePatientQuery, [newLocation, patientId]);
 
-        // Log the transfer in standort_verlauf
-        const logTransferQuery = `
-            INSERT INTO standort_verlauf (patient_id, alter_standort, neuer_standort, grund, geaendert_von, geaendert_am)
-            VALUES ($1, $2, $3, $4, $5, NOW())
-        `;
-        await pool.query(logTransferQuery, [patientId, oldLocation, newLocation, reason, adminId]);
+        const newPflegekraftResult = await pool.query(findNewPflegekraftQuery, [
+            newLocation,
+            patient.current_pflegekraft_id || 0  // Use 0 if no current assignment
+        ]);
 
-        // Create notification for assigned pflegekraft if exists
-        const pflegekraftQuery = `
-            SELECT mitarbeiter_id 
-            FROM patient_zuweisung 
-            WHERE patient_id = $1 AND status = 'active'
-        `;
-        const pflegekraftResult = await pool.query(pflegekraftQuery, [patientId]);
+        let reassignmentMessage = '';
 
-        if (pflegekraftResult.rows.length > 0) {
-            const pflegekraftId = pflegekraftResult.rows[0].mitarbeiter_id;
+        if (newPflegekraftResult.rows.length > 0) {
+            // Found a NEW Pflegekraft
+            const newPflegekraft = newPflegekraftResult.rows[0];
+            console.log(`✅ Neue Pflegekraft: ${newPflegekraft.name} (${newPflegekraft.current_patients}/24 Patienten)`);
 
-            const notificationQuery = `
-                INSERT INTO benachrichtigungen (patient_id, mitarbeiter_id, typ, titel, nachricht, prioritaet)
-                VALUES ($1, $2, 'standort_wechsel', 'Patient Standortwechsel', $3, 'normal')
-            `;
-            const notificationMessage = `${patient.vorname} ${patient.nachname} wurde von ${oldLocation} nach ${newLocation} verlegt.`;
-            await pool.query(notificationQuery, [patientId, pflegekraftId, notificationMessage]);
+            // Update or create assignment
+            if (patient.current_pflegekraft_id) {
+                // UPDATE existing assignment
+                await pool.query(
+                    'UPDATE patient_zuweisung SET mitarbeiter_id = $1, zuweisung_datum = NOW(), updated_at = NOW() WHERE patient_id = $2 AND status = $3',
+                    [newPflegekraft.id, patientId, 'active']
+                );
+            } else {
+                // CREATE new assignment
+                await pool.query(
+                    'INSERT INTO patient_zuweisung (patient_id, mitarbeiter_id, status, zuweisung_datum) VALUES ($1, $2, $3, NOW()) ON CONFLICT (patient_id) DO UPDATE SET mitarbeiter_id = EXCLUDED.mitarbeiter_id, zuweisung_datum = EXCLUDED.zuweisung_datum, status = EXCLUDED.status, updated_at = NOW()',
+                    [patientId, newPflegekraft.id, 'active']
+                );
+            }
+
+            reassignmentMessage = ` und neuer Pflegekraft ${newPflegekraft.name} zugewiesen`;
+
+            // Notify NEW Pflegekraft
+            await pool.query(
+                'INSERT INTO benachrichtigungen (patient_id, mitarbeiter_id, typ, titel, nachricht, prioritaet, erstellt_am) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
+                [patientId, newPflegekraft.id, 'new_patient_assignment', 'Neuer Patient zugewiesen', `${patient.vorname} ${patient.nachname} wurde Ihnen von ${oldLocation} zugewiesen.`, 'normal']
+            );
+
+            // Notify OLD Pflegekraft (if exists)
+            if (patient.current_pflegekraft_id) {
+                await pool.query(
+                    'INSERT INTO benachrichtigungen (patient_id, mitarbeiter_id, typ, titel, nachricht, prioritaet, erstellt_am) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
+                    [patientId, patient.current_pflegekraft_id, 'patient_transferred', 'Patient verlegt', `${patient.vorname} ${patient.nachname} wurde nach ${newLocation} verlegt und einer anderen Pflegekraft zugewiesen.`, 'normal']
+                );
+            }
+
+        } else {
+            // No other Pflegekraft available - keep current or remove assignment
+            console.log(`❌ Keine andere Pflegekraft verfügbar in ${newLocation}`);
+
+            // Check if current Pflegekraft is also at new location
+            if (patient.current_pflegekraft_id) {
+                const currentPflegekraftLocationQuery = `
+                    SELECT standort FROM mitarbeiter WHERE id = $1
+                `;
+                const currentPflegekraftLocation = await pool.query(currentPflegekraftLocationQuery, [patient.current_pflegekraft_id]);
+
+                if (currentPflegekraftLocation.rows[0]?.standort === newLocation) {
+                    // Current Pflegekraft is also at new location - keep assignment but warn
+                    reassignmentMessage = ` (Pflegekraft ${patient.current_pflegekraft_name} ebenfalls am Zielort - Zuweisung beibehalten)`;
+                } else {
+                    // Remove assignment since Pflegekraft not at new location
+                    await pool.query(
+                        'UPDATE patient_zuweisung SET status = $1, updated_at = NOW() WHERE patient_id = $2 AND status = $3',
+                        ['no_pflegekraft_available', patientId, 'active']
+                    );
+                    reassignmentMessage = ` (⚠️ Keine Pflegekraft verfügbar - Patient ohne Zuweisung)`;
+                }
+            } else {
+                reassignmentMessage = ` (⚠️ Keine Pflegekraft verfügbar am Zielort)`;
+            }
+
+            // Alert administrators
+            await pool.query(
+                'INSERT INTO benachrichtigungen (patient_id, mitarbeiter_id, typ, titel, nachricht, prioritaet, erstellt_am) SELECT $1, m.id, $2, $3, $4, $5, NOW() FROM mitarbeiter m WHERE m.rolle = $6 AND m.status = $7',
+                [patientId, 'admin_alert', 'Patient ohne Pflegekraft', `Patient ${patient.vorname} ${patient.nachname} wurde nach ${newLocation} verlegt, aber keine andere Pflegekraft verfügbar.`, 'high', 'administrator', 'active']
+            );
         }
 
         await pool.query('COMMIT');
+        console.log(`✅ Transfer completed: ${patient.vorname} ${patient.nachname}${reassignmentMessage}`);
 
         res.json({
             success: true,
-            message: `Patient erfolgreich von ${oldLocation} nach ${newLocation} verlegt`
+            message: `Patient erfolgreich von ${oldLocation} nach ${newLocation} verlegt${reassignmentMessage}`
         });
 
     } catch (error) {
         await pool.query('ROLLBACK');
-        console.error('Transfer error:', error);
+        console.error('❌ Transfer error:', error);
         res.status(500).json({
             success: false,
             message: error.message || 'Fehler beim Transfer'
+        });
+    }
+});
+
+// ========== SIMPLE APPROVE TRANSFER REQUEST ==========
+app.post('/api/admin/transfers/requests/:requestId/approve', async (req, res) => {
+    const { requestId } = req.params;
+    const { adminId, adminResponse } = req.body;
+
+    try {
+        await pool.query('BEGIN');
+
+        // Get request details
+        const requestResult = await pool.query('SELECT * FROM transfer_requests WHERE id = $1 AND status = $2', [requestId, 'pending']);
+
+        if (requestResult.rows.length === 0) {
+            await pool.query('ROLLBACK');
+            return res.status(404).json({
+                success: false,
+                message: 'Transfer-Anfrage nicht gefunden oder bereits bearbeitet'
+            });
+        }
+
+        const request = requestResult.rows[0];
+
+        // Get patient info
+        const patientInfo = await pool.query(
+            'SELECT p.vorname, p.nachname, pz.mitarbeiter_id, m.vorname || \' \' || m.nachname as current_pflegekraft_name FROM patienten p LEFT JOIN patient_zuweisung pz ON p.id = pz.patient_id AND pz.status = $1 LEFT JOIN mitarbeiter m ON pz.mitarbeiter_id = m.id WHERE p.id = $2',
+            ['active', request.patient_id]
+        );
+        const patient = patientInfo.rows[0];
+
+        console.log(`🔄 Approve Transfer: ${patient.vorname} ${patient.nachname} → ${request.gewuenschter_standort}`);
+
+        // Update patient location
+        await pool.query('UPDATE patienten SET standort = $1 WHERE id = $2', [request.gewuenschter_standort, request.patient_id]);
+
+        // Log transfer
+        await pool.query(
+            'INSERT INTO standort_verlauf (patient_id, alter_standort, neuer_standort, grund, geaendert_von, geaendert_am) VALUES ($1, $2, $3, $4, $5, NOW())',
+            [request.patient_id, request.current_standort, request.gewuenschter_standort, `Genehmigter Transfer-Antrag: ${request.grund}`, adminId]
+        );
+
+        // Find NEW Pflegekraft (exclude current one)
+        const newPflegekraftResult = await pool.query(
+            'SELECT m.id, m.vorname || \' \' || m.nachname as name, COUNT(pz.patient_id) as current_patients FROM mitarbeiter m LEFT JOIN patient_zuweisung pz ON m.id = pz.mitarbeiter_id AND pz.status = $1 WHERE m.rolle = $2 AND m.status = $3 AND m.standort = $4 AND m.id != $5 GROUP BY m.id, m.vorname, m.nachname HAVING COUNT(pz.patient_id) < 24 ORDER BY COUNT(pz.patient_id) ASC, m.id ASC LIMIT 1',
+            ['active', 'pflegekraft', 'active', request.gewuenschter_standort, patient.mitarbeiter_id || 0]
+        );
+
+        let reassignmentMessage = '';
+
+        if (newPflegekraftResult.rows.length > 0) {
+            const newPflegekraft = newPflegekraftResult.rows[0];
+            console.log(`✅ Neue Pflegekraft: ${newPflegekraft.name}`);
+
+            // Update assignment
+            if (patient.mitarbeiter_id) {
+                await pool.query(
+                    'UPDATE patient_zuweisung SET mitarbeiter_id = $1, zuweisung_datum = NOW(), updated_at = NOW() WHERE patient_id = $2 AND status = $3',
+                    [newPflegekraft.id, request.patient_id, 'active']
+                );
+            } else {
+                await pool.query(
+                    'INSERT INTO patient_zuweisung (patient_id, mitarbeiter_id, status, zuweisung_datum) VALUES ($1, $2, $3, NOW()) ON CONFLICT (patient_id) DO UPDATE SET mitarbeiter_id = EXCLUDED.mitarbeiter_id, zuweisung_datum = EXCLUDED.zuweisung_datum, status = EXCLUDED.status, updated_at = NOW()',
+                    [request.patient_id, newPflegekraft.id, 'active']
+                );
+            }
+
+            reassignmentMessage = ` und automatisch Pflegekraft ${newPflegekraft.name} zugewiesen`;
+
+            // Notifications
+            await pool.query(
+                'INSERT INTO benachrichtigungen (patient_id, mitarbeiter_id, typ, titel, nachricht, prioritaet, erstellt_am) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
+                [request.patient_id, newPflegekraft.id, 'new_patient_assignment', 'Neuer Patient zugewiesen', `${patient.vorname} ${patient.nachname} wurde Ihnen durch Transfer zugewiesen.`, 'normal']
+            );
+
+            if (patient.mitarbeiter_id) {
+                await pool.query(
+                    'INSERT INTO benachrichtigungen (patient_id, mitarbeiter_id, typ, titel, nachricht, prioritaet, erstellt_am) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
+                    [request.patient_id, patient.mitarbeiter_id, 'patient_transferred', 'Patient verlegt', `${patient.vorname} ${patient.nachname} wurde nach ${request.gewuenschter_standort} verlegt.`, 'normal']
+                );
+            }
+        } else {
+            reassignmentMessage = ` (Warnung: Keine andere Pflegekraft verfügbar)`;
+        }
+
+        // Update request status
+        const finalResponse = (adminResponse || 'Transfer-Anfrage genehmigt und durchgeführt') + reassignmentMessage;
+        const updateResult = await pool.query(
+            'UPDATE transfer_requests SET status = $1, admin_response = $2, admin_id = $3, bearbeitet_am = NOW() WHERE id = $4 RETURNING *',
+            ['approved', finalResponse, adminId, requestId]
+        );
+
+        // Notify patient
+        await pool.query(
+            'INSERT INTO benachrichtigungen (patient_id, typ, titel, nachricht, prioritaet, erstellt_am) VALUES ($1, $2, $3, $4, $5, NOW())',
+            [request.patient_id, 'transfer_approved', 'Transfer genehmigt', `Ihr Transfer-Antrag von ${request.current_standort} nach ${request.gewuenschter_standort} wurde genehmigt und durchgeführt.${reassignmentMessage}`, 'normal']
+        );
+
+        await pool.query('COMMIT');
+        console.log(`✅ Transfer Request approved: ${patient.vorname} ${patient.nachname}`);
+
+        res.json({
+            success: true,
+            message: 'Transfer-Anfrage genehmigt und durchgeführt' + reassignmentMessage,
+            request: updateResult.rows[0]
+        });
+
+    } catch (error) {
+        await pool.query('ROLLBACK');
+        console.error('❌ Transfer request approval error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler bei der Genehmigung der Transfer-Anfrage: ' + error.message
+        });
+    }
+});
+
+// ========== ENHANCED APPROVE TRANSFER REQUEST ==========
+
+// Replace your existing approve transfer request endpoint
+
+
+// ========== HELPER FUNCTION: Get Available Pflegekraft ==========
+
+// Add this helper function to your server.js
+async function findAvailablePflegekraftAtLocation(location) {
+    const query = `
+        SELECT 
+            m.id,
+            m.vorname || ' ' || m.nachname as name,
+            m.benutzername,
+            COUNT(pz.patient_id) as current_patients
+        FROM mitarbeiter m
+        LEFT JOIN patient_zuweisung pz ON m.id = pz.mitarbeiter_id AND pz.status = 'active'
+        WHERE m.rolle = 'pflegekraft' 
+          AND m.status = 'active'
+          AND m.standort = $1
+        GROUP BY m.id, m.vorname, m.nachname, m.benutzername
+        HAVING COUNT(pz.patient_id) < 24
+        ORDER BY COUNT(pz.patient_id) ASC, m.id ASC
+        LIMIT 1
+    `;
+
+    const result = await pool.query(query, [location]);
+    return result.rows.length > 0 ? result.rows[0] : null;
+}
+
+// ========== UTILITY ENDPOINT: Check Pflegekraft Availability ==========
+
+// Add this endpoint to check availability at different locations
+app.get('/api/admin/pflegekraft-availability/:location', async (req, res) => {
+    const { location } = req.params;
+
+    try {
+        const availabilityQuery = `
+            SELECT 
+                m.id,
+                m.vorname || ' ' || m.nachname as name,
+                COUNT(pz.patient_id) as current_patients,
+                (24 - COUNT(pz.patient_id)) as available_slots
+            FROM mitarbeiter m
+            LEFT JOIN patient_zuweisung pz ON m.id = pz.mitarbeiter_id AND pz.status = 'active'
+            WHERE m.rolle = 'pflegekraft' 
+              AND m.status = 'active'
+              AND m.standort = $1
+            GROUP BY m.id, m.vorname, m.nachname
+            ORDER BY current_patients ASC
+        `;
+
+        const result = await pool.query(availabilityQuery, [location]);
+
+        res.json({
+            success: true,
+            location: location,
+            pflegekraefte: result.rows,
+            totalAvailable: result.rows.filter(pf => pf.current_patients < 24).length
+        });
+
+    } catch (error) {
+        console.error('Availability check error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler beim Prüfen der Verfügbarkeit'
         });
     }
 });
