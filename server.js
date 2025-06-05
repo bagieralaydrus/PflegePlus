@@ -1694,7 +1694,142 @@ async function findAvailablePflegekraftAtLocation(location) {
     const result = await pool.query(query, [location]);
     return result.rows.length > 0 ? result.rows[0] : null;
 }
+// Add this function to server.js
+async function checkCriticalHealthData(patientId, gesundheitsdatenId) {
+    try {
+        // Get the critical health data with patient and assignment info
+        const criticalDataQuery = `
+            SELECT 
+                g.id,
+                g.patient_id,
+                g.blutdruck_systolisch,
+                g.blutdruck_diastolisch,
+                g.puls,
+                g.temperatur,
+                g.sauerstoffsaettigung,
+                g.ist_kritisch,
+                g.bemerkungen,
+                p.vorname || ' ' || p.nachname as patient_name,
+                p.standort,
+                p.zimmer_nummer,
+                pz.mitarbeiter_id as assigned_pflegekraft_id,
+                m.vorname || ' ' || m.nachname as pflegekraft_name,
+                m.telefon as pflegekraft_telefon
+            FROM gesundheitsdaten g
+            JOIN patienten p ON g.patient_id = p.id
+            LEFT JOIN patient_zuweisung pz ON p.id = pz.patient_id AND pz.status = 'active'
+            LEFT JOIN mitarbeiter m ON pz.mitarbeiter_id = m.id
+            WHERE g.id = $1 AND g.ist_kritisch = true
+        `;
 
+        const result = await pool.query(criticalDataQuery, [gesundheitsdatenId]);
+
+        if (result.rows.length === 0) {
+            return; // Not critical or not found
+        }
+
+        const criticalData = result.rows[0];
+        console.log(`🚨 CRITICAL ALERT: ${criticalData.patient_name} - Room ${criticalData.zimmer_nummer}`);
+
+        // Generate alert message
+        const alertMessage = generateCriticalAlertMessage(criticalData);
+
+        // Send alerts to relevant people
+        await sendCriticalAlerts(criticalData, alertMessage);
+
+    } catch (error) {
+        console.error('Critical health data check error:', error);
+    }
+}
+
+function generateCriticalAlertMessage(data) {
+    const criticalValues = [];
+
+    if (data.blutdruck_systolisch > 180 || data.blutdruck_systolisch < 90) {
+        criticalValues.push(`Blutdruck: ${data.blutdruck_systolisch}/${data.blutdruck_diastolisch}`);
+    }
+    if (data.puls > 120 || data.puls < 50) {
+        criticalValues.push(`Puls: ${data.puls}`);
+    }
+    if (data.temperatur > 39 || data.temperatur < 35) {
+        criticalValues.push(`Temperatur: ${data.temperatur}°C`);
+    }
+    if (data.sauerstoffsaettigung < 90) {
+        criticalValues.push(`O2-Sättigung: ${data.sauerstoffsaettigung}%`);
+    }
+
+    return `🚨 KRITISCHER ZUSTAND: ${data.patient_name} (Zimmer ${data.zimmer_nummer})
+Kritische Werte: ${criticalValues.join(', ')}
+${data.bemerkungen ? 'Bemerkung: ' + data.bemerkungen : ''}
+Sofortige Aufmerksamkeit erforderlich!`;
+}
+
+async function sendCriticalAlerts(criticalData, alertMessage) {
+    const alerts = [];
+
+    // Priority 1: Assigned Pflegekraft
+    if (criticalData.assigned_pflegekraft_id) {
+        alerts.push({
+            patient_id: criticalData.patient_id,
+            mitarbeiter_id: criticalData.assigned_pflegekraft_id,
+            typ: 'critical_health_alert',
+            titel: '🚨 KRITISCHER GESUNDHEITSZUSTAND',
+            nachricht: alertMessage,
+            prioritaet: 'urgent'
+        });
+    }
+
+    // Priority 1: All Administrators
+    const adminQuery = `
+        SELECT id FROM mitarbeiter 
+        WHERE rolle = 'administrator' AND status = 'active'
+    `;
+    const admins = await pool.query(adminQuery);
+
+    admins.rows.forEach(admin => {
+        alerts.push({
+            patient_id: criticalData.patient_id,
+            mitarbeiter_id: admin.id,
+            typ: 'critical_health_alert',
+            titel: '🚨 KRITISCHER GESUNDHEITSZUSTAND',
+            nachricht: alertMessage,
+            prioritaet: 'urgent'
+        });
+    });
+
+    // Priority 2: Other Pflegekräfte at same location (if no assigned Pflegekraft)
+    if (!criticalData.assigned_pflegekraft_id) {
+        const locationPflegekraftQuery = `
+            SELECT id FROM mitarbeiter 
+            WHERE rolle = 'pflegekraft' 
+              AND status = 'active'
+              AND standort = $1
+            LIMIT 3
+        `;
+        const locationPflegekraefte = await pool.query(locationPflegekraftQuery, [criticalData.standort]);
+
+        locationPflegekraefte.rows.forEach(pf => {
+            alerts.push({
+                patient_id: criticalData.patient_id,
+                mitarbeiter_id: pf.id,
+                typ: 'critical_health_alert',
+                titel: '🚨 UNASSIGNED PATIENT - KRITISCH',
+                nachricht: `${alertMessage}\n\n⚠️ Patient hat keine zugewiesene Pflegekraft!`,
+                prioritaet: 'urgent'
+            });
+        });
+    }
+
+    // Insert all alerts into database
+    for (const alert of alerts) {
+        await pool.query(
+            'INSERT INTO benachrichtigungen (patient_id, mitarbeiter_id, typ, titel, nachricht, prioritaet, erstellt_am) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
+            [alert.patient_id, alert.mitarbeiter_id, alert.typ, alert.titel, alert.nachricht, alert.prioritaet]
+        );
+    }
+
+    console.log(`📢 Sent ${alerts.length} critical health alerts`);
+}
 // ========== UTILITY ENDPOINT: Check Pflegekraft Availability ==========
 
 // Add this endpoint to check availability at different locations
@@ -2270,6 +2405,335 @@ app.post('/api/admin/init-transfer-tables', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Fehler bei der Tabellen-Initialisierung: ' + error.message
+        });
+    }
+});
+
+// Add this endpoint to automatically detect critical health data
+app.post('/api/health/check-critical/:gesundheitsdatenId', async (req, res) => {
+    const { gesundheitsdatenId } = req.params;
+
+    try {
+        await checkCriticalHealthData(null, gesundheitsdatenId);
+
+        res.json({
+            success: true,
+            message: 'Critical health check completed'
+        });
+    } catch (error) {
+        console.error('Critical health check error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error checking critical health data'
+        });
+    }
+});
+
+// Enhanced health data insertion endpoint that automatically checks for critical values
+app.post('/api/health/data', async (req, res) => {
+    const {
+        patientId,
+        mitarbeiterId,
+        blutdruckSystolisch,
+        blutdruckDiastolisch,
+        puls,
+        temperatur,
+        sauerstoffsaettigung,
+        bemerkungen
+    } = req.body;
+
+    try {
+        // Determine if values are critical
+        const isCritical = (
+            (blutdruckSystolisch && (blutdruckSystolisch > 180 || blutdruckSystolisch < 90)) ||
+            (blutdruckDiastolisch && (blutdruckDiastolisch > 120 || blutdruckDiastolisch < 60)) ||
+            (puls && (puls > 120 || puls < 50)) ||
+            (temperatur && (temperatur > 39 || temperatur < 35)) ||
+            (sauerstoffsaettigung && sauerstoffsaettigung < 90)
+        );
+
+        // Insert health data
+        const insertQuery = `
+            INSERT INTO gesundheitsdaten (
+                patient_id, mitarbeiter_id, blutdruck_systolisch, blutdruck_diastolisch,
+                puls, temperatur, sauerstoffsaettigung, bemerkungen, ist_kritisch, gemessen_am
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+            RETURNING *
+        `;
+
+        const result = await pool.query(insertQuery, [
+            patientId, mitarbeiterId, blutdruckSystolisch, blutdruckDiastolisch,
+            puls, temperatur, sauerstoffsaettigung, bemerkungen, isCritical
+        ]);
+
+        const newHealthData = result.rows[0];
+
+        // If critical, trigger alert system
+        if (isCritical) {
+            await checkCriticalHealthData(patientId, newHealthData.id);
+        }
+
+        res.json({
+            success: true,
+            message: isCritical ? 'Gesundheitsdaten gespeichert - KRITISCHE WERTE ERKANNT!' : 'Gesundheitsdaten erfolgreich gespeichert',
+            healthData: newHealthData,
+            critical: isCritical
+        });
+
+    } catch (error) {
+        console.error('Health data insertion error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler beim Speichern der Gesundheitsdaten'
+        });
+    }
+});
+
+// Get critical notifications for user
+app.get('/api/notifications/critical/:userId', async (req, res) => {
+    const { userId } = req.params;
+    const { userType } = req.query;
+
+    try {
+        let query = '';
+
+        if (userType === 'mitarbeiter') {
+            query = `
+                SELECT 
+                    b.*,
+                    p.vorname || ' ' || p.nachname as patient_name
+                FROM benachrichtigungen b
+                JOIN patienten p ON b.patient_id = p.id
+                WHERE b.mitarbeiter_id = $1
+                  AND b.typ = 'critical_health_alert'
+                  AND b.gelesen = false
+                  AND b.erstellt_am >= NOW() - INTERVAL '24 hours'
+                ORDER BY b.erstellt_am DESC
+            `;
+        } else {
+            // For patients - they don't get critical health alerts about themselves
+            query = `
+                SELECT 
+                    b.*,
+                    'Sie' as patient_name
+                FROM benachrichtigungen b
+                WHERE b.patient_id = $1
+                  AND b.typ IN ('transfer_approved', 'transfer_rejected')
+                  AND b.gelesen = false
+                  AND b.erstellt_am >= NOW() - INTERVAL '24 hours'
+                ORDER BY b.erstellt_am DESC
+            `;
+        }
+
+        const result = await pool.query(query, [userId]);
+
+        res.json({
+            success: true,
+            criticalAlerts: result.rows
+        });
+
+    } catch (error) {
+        console.error('Critical notifications error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error loading critical notifications'
+        });
+    }
+});
+
+// Mark notification as read
+app.put('/api/notifications/:notificationId/read', async (req, res) => {
+    const { notificationId } = req.params;
+
+    try {
+        const updateQuery = `
+            UPDATE benachrichtigungen 
+            SET gelesen = true, erstellt_am = NOW()
+            WHERE id = $1
+            RETURNING *
+        `;
+
+        const result = await pool.query(updateQuery, [notificationId]);
+
+        res.json({
+            success: true,
+            notification: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Mark notification read error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error marking notification as read'
+        });
+    }
+});
+
+// Demo endpoint: Simulate critical health data
+app.post('/api/demo/critical-health', async (req, res) => {
+    const { patientId, scenario = 'high_blood_pressure' } = req.body;
+
+    try {
+        let healthData = {};
+
+        switch (scenario) {
+            case 'high_blood_pressure':
+                healthData = {
+                    blutdruck_systolisch: 195,
+                    blutdruck_diastolisch: 125,
+                    puls: 95,
+                    temperatur: 37.2,
+                    sauerstoffsaettigung: 98,
+                    bemerkungen: 'Patient klagt über Kopfschmerzen und Schwindel'
+                };
+                break;
+            case 'low_oxygen':
+                healthData = {
+                    blutdruck_systolisch: 130,
+                    blutdruck_diastolisch: 85,
+                    puls: 105,
+                    temperatur: 38.1,
+                    sauerstoffsaettigung: 87,
+                    bemerkungen: 'Atemnot und Unruhe beobachtet'
+                };
+                break;
+            case 'high_fever':
+                healthData = {
+                    blutdruck_systolisch: 110,
+                    blutdruck_diastolisch: 70,
+                    puls: 125,
+                    temperatur: 39.8,
+                    sauerstoffsaettigung: 95,
+                    bemerkungen: 'Hohes Fieber, Patient ist schwach'
+                };
+                break;
+            default:
+                healthData = {
+                    blutdruck_systolisch: 200,
+                    blutdruck_diastolisch: 130,
+                    puls: 130,
+                    temperatur: 40.1,
+                    sauerstoffsaettigung: 85,
+                    bemerkungen: 'MEHRERE KRITISCHE WERTE - NOTFALL!'
+                };
+        }
+
+        // Insert critical health data
+        const insertQuery = `
+            INSERT INTO gesundheitsdaten (
+                patient_id, blutdruck_systolisch, blutdruck_diastolisch,
+                puls, temperatur, sauerstoffsaettigung, bemerkungen, 
+                ist_kritisch, gemessen_am
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, true, NOW())
+            RETURNING *
+        `;
+
+        const result = await pool.query(insertQuery, [
+            patientId,
+            healthData.blutdruck_systolisch,
+            healthData.blutdruck_diastolisch,
+            healthData.puls,
+            healthData.temperatur,
+            healthData.sauerstoffsaettigung,
+            healthData.bemerkungen
+        ]);
+
+        // Trigger alert system
+        await checkCriticalHealthData(patientId, result.rows[0].id);
+
+        res.json({
+            success: true,
+            message: `Demo-Alarm ausgelöst: ${scenario}`,
+            healthData: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Demo critical health error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler beim Demo-Alarm: ' + error.message
+        });
+    }
+});
+
+// Get all patients for demo selection
+app.get('/api/demo/patients', async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                p.id,
+                p.vorname || ' ' || p.nachname as name,
+                p.standort,
+                p.zimmer_nummer,
+                COALESCE(m.vorname || ' ' || m.nachname, 'Keine Pflegekraft') as pflegekraft
+            FROM patienten p
+            LEFT JOIN patient_zuweisung pz ON p.id = pz.patient_id AND pz.status = 'active'
+            LEFT JOIN mitarbeiter m ON pz.mitarbeiter_id = m.id
+            WHERE p.status = 'active'
+            ORDER BY p.nachname, p.vorname
+            LIMIT 10
+        `;
+
+        const result = await pool.query(query);
+
+        res.json({
+            success: true,
+            patients: result.rows
+        });
+
+    } catch (error) {
+        console.error('Demo patients error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error loading patients for demo'
+        });
+    }
+});
+
+// Serve the demo page
+app.get('/demo-health-alerts', (req, res) => {
+    res.sendFile(path.join(__dirname, 'WEB SEITE', 'demo-health-alerts.html'));
+});
+
+// Initialize critical health monitoring when server starts
+app.post('/api/admin/init-health-monitoring', async (req, res) => {
+    try {
+        // Create the health monitoring function as a database function (optional advanced step)
+        // For now, we'll just confirm the tables exist
+
+        const checkTablesQuery = `
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name IN ('gesundheitsdaten', 'benachrichtigungen', 'patienten', 'mitarbeiter', 'patient_zuweisung')
+        `;
+
+        const result = await pool.query(checkTablesQuery);
+
+        const requiredTables = ['gesundheitsdaten', 'benachrichtigungen', 'patienten', 'mitarbeiter', 'patient_zuweisung'];
+        const existingTables = result.rows.map(row => row.table_name);
+        const missingTables = requiredTables.filter(table => !existingTables.includes(table));
+
+        if (missingTables.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: `Missing required tables: ${missingTables.join(', ')}`
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'Health monitoring system is ready',
+            tables: existingTables
+        });
+
+    } catch (error) {
+        console.error('Health monitoring init error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error initializing health monitoring system'
         });
     }
 });

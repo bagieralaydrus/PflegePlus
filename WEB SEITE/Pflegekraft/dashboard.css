@@ -60,8 +60,8 @@ body {
 /* ====== Main ====== */
 .main {
   flex: 1;
-  margin-top: 3.5rem;    /* header-Höhe */
-  margin-bottom: 3.5rem; /* footer-Höhe */
+  margin-top: 3.5rem;
+  margin-bottom: 3.5rem;
   padding: 2rem 1rem;
 }
 .dashboard-header {
@@ -155,8 +155,6 @@ body {
   color: #555;
 }
 
-/* Add these styles to your existing dashboard.css */
-
 /* ====== Task Action Buttons ====== */
 .task-actions {
   margin-top: 0.5rem;
@@ -192,13 +190,376 @@ body {
   background: #c82333;
 }
 
-/* Make table cells with buttons wider */
 #assignmentsTable td:last-child {
   min-width: 200px;
 }
 
-/* Responsive adjustments for mobile */
+/* ====== Enhanced Button Styles for Critical Alerts ====== */
+.btn-primary {
+  background: linear-gradient(135deg, #2d7ff9, #4b86f9);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(45, 127, 249, 0.3);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #1b5fd9, #376de9);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(45, 127, 249, 0.4);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-secondary:hover {
+  background: #5a6268;
+  transform: translateY(-1px);
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, #ffc107, #ffb300);
+  color: #212529;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-warning:hover {
+  background: linear-gradient(135deg, #ffb300, #ff8f00);
+  transform: translateY(-1px);
+}
+
+/* ====== Critical Alert Banner ====== */
+.critical-alert-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, #dc3545, #c82333);
+  color: white;
+  z-index: 9999;
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+  animation: criticalPulse 2s ease-in-out infinite;
+}
+
+.critical-alert-content {
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  gap: 1rem;
+}
+
+.critical-alert-icon {
+  font-size: 2rem;
+  animation: shake 0.5s infinite;
+}
+
+.critical-alert-text {
+  flex: 1;
+}
+
+.critical-alert-details {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  margin-top: 0.25rem;
+}
+
+.critical-alert-banner-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.critical-alert-action {
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid white;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.critical-alert-action:hover {
+  background: white;
+  color: #dc3545;
+}
+
+.critical-alert-action.secondary {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.critical-alert-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: background 0.3s ease;
+}
+
+.critical-alert-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ====== Critical Alert Modal ====== */
+.critical-alert-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.critical-alert-modal-content {
+  background: white;
+  border-radius: 12px;
+  max-width: 800px;
+  max-height: 80vh;
+  overflow-y: auto;
+  width: 100%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.critical-alert-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #eee;
+  background: linear-gradient(135deg, #dc3545, #c82333);
+  color: white;
+  border-radius: 12px 12px 0 0;
+}
+
+.critical-alert-modal-body {
+  padding: 1.5rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.critical-alert-item {
+  background: #fff5f5;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  transition: all 0.3s ease;
+}
+
+.critical-alert-patient {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.critical-alert-time {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.critical-alert-message {
+  margin-bottom: 1rem;
+  line-height: 1.4;
+  white-space: pre-line;
+}
+
+.critical-alert-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.critical-alert-bulk-actions {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #ddd;
+  text-align: center;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: background 0.3s ease;
+}
+
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ====== Notifications ====== */
+#notificationArea {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 400px;
+}
+
+.notification {
+  background: white;
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  border-left: 4px solid #2d7ff9;
+  animation: slideInRight 0.3s ease-out;
+}
+
+.notification.success {
+  border-left-color: #28a745;
+}
+
+.notification.error {
+  border-left-color: #dc3545;
+}
+
+.notification-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.notification-text {
+  flex: 1;
+  line-height: 1.4;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.notification-close {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  color: #6c757d;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.notification-close:hover {
+  background: rgba(108, 117, 125, 0.1);
+  color: #495057;
+  transform: scale(1.1);
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 0.5rem;
+}
+
+/* ====== Animations ====== */
+@keyframes criticalPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Adjust main content when critical banner is shown */
+body:has(.critical-alert-banner) .main {
+  margin-top: calc(3.5rem + 80px);
+}
+
+/* ====== Responsive ====== */
 @media (max-width: 768px) {
+  .cards {
+    flex-direction: column;
+    align-items: center;
+  }
+
   .task-actions {
     flex-direction: column;
   }
@@ -207,10 +568,28 @@ body {
     width: 100%;
     text-align: center;
   }
-}
 
+  .critical-alert-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.5rem;
+  }
 
-/* ====== Responsive ====== */
-@media (max-width: 768px) {
-  .cards { flex-direction: column; align-items: center; }
+  .critical-alert-banner-actions {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .critical-alert-action {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .critical-alert-modal {
+    padding: 1rem;
+  }
+
+  .critical-alert-actions {
+    flex-direction: column;
+  }
 }

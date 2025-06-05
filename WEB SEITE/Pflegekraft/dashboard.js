@@ -83,14 +83,14 @@ document.addEventListener('DOMContentLoaded', () => {
           .then(data => {
             if (data.success) {
               loadDashboardData(); // Reload dashboard
-              alert('Aufgabe erfolgreich abgeschlossen!');
+              showNotification('Aufgabe erfolgreich abgeschlossen!', 'success');
             } else {
-              alert('Fehler beim Abschließen der Aufgabe');
+              showNotification('Fehler beim Abschließen der Aufgabe', 'error');
             }
           })
           .catch(error => {
             console.error('Complete task error:', error);
-            alert('Fehler beim Abschließen der Aufgabe');
+            showNotification('Fehler beim Abschließen der Aufgabe', 'error');
           });
     }
   };
@@ -105,14 +105,14 @@ document.addEventListener('DOMContentLoaded', () => {
           .then(data => {
             if (data.success) {
               loadDashboardData(); // Reload dashboard
-              alert('Aufgabe erfolgreich gelöscht!');
+              showNotification('Aufgabe erfolgreich gelöscht!', 'success');
             } else {
-              alert('Fehler beim Löschen der Aufgabe');
+              showNotification('Fehler beim Löschen der Aufgabe', 'error');
             }
           })
           .catch(error => {
             console.error('Delete task error:', error);
-            alert('Fehler beim Löschen der Aufgabe');
+            showNotification('Fehler beim Löschen der Aufgabe', 'error');
           });
     }
   };
@@ -167,4 +167,173 @@ document.addEventListener('DOMContentLoaded', () => {
 
   init();
   animate();
+
+  // ========== CRITICAL ALERT SYSTEM ==========
+  setupCriticalAlertMonitoring();
+
+  function setupCriticalAlertMonitoring() {
+    setInterval(async () => {
+      await checkForCriticalAlerts();
+    }, 30000);
+    checkForCriticalAlerts();
+  }
+
+  async function checkForCriticalAlerts() {
+    try {
+      const response = await fetch(`/api/notifications/critical/${mitarbeiterId}?userType=mitarbeiter`);
+      if (!response.ok) return;
+      const data = await response.json();
+      if (data.success && data.criticalAlerts.length > 0) {
+        displayCriticalAlerts(data.criticalAlerts);
+      }
+    } catch (error) {
+      console.error('Critical alert check error:', error);
+    }
+  }
+
+  function displayCriticalAlerts(alerts) {
+    const existingBanner = document.querySelector('.critical-alert-banner');
+    if (existingBanner) existingBanner.remove();
+    if (alerts.length === 0) return;
+
+    const banner = document.createElement('div');
+    banner.className = 'critical-alert-banner';
+    banner.innerHTML = `
+      <div class="critical-alert-content">
+        <div class="critical-alert-icon">🚨</div>
+        <div class="critical-alert-text">
+          <strong>KRITISCHE GESUNDHEITSWERTE ERKANNT!</strong>
+          <div class="critical-alert-details">${alerts.length} Patient(en) benötigen sofortige Aufmerksamkeit</div>
+        </div>
+        <div class="critical-alert-banner-actions">
+          <button class="critical-alert-action" onclick="showCriticalAlertDetails()">📋 Details anzeigen</button>
+          <button class="critical-alert-action secondary" onclick="acknowledgeAllAlertsFromBanner()">✅ Alle erledigt</button>
+        </div>
+        <button class="critical-alert-close" onclick="this.parentElement.parentElement.remove()">×</button>
+      </div>
+    `;
+    document.body.insertBefore(banner, document.body.firstChild);
+    window.currentCriticalAlerts = alerts;
+  }
+
+  window.showCriticalAlertDetails = function() {
+    const alerts = window.currentCriticalAlerts || [];
+    if (alerts.length === 0) return;
+
+    const modal = document.createElement('div');
+    modal.className = 'critical-alert-modal';
+    modal.innerHTML = `
+      <div class="critical-alert-modal-content">
+        <div class="critical-alert-modal-header">
+          <h2>🚨 Kritische Gesundheitswerte</h2>
+          <button class="modal-close" onclick="this.closest('.critical-alert-modal').remove()">×</button>
+        </div>
+        <div class="critical-alert-modal-body">
+          ${alerts.map(alert => `
+            <div class="critical-alert-item" data-alert-id="${alert.id}">
+              <div class="critical-alert-patient">
+                <strong>${alert.patient_name || 'Unbekannter Patient'}</strong>
+                <span class="critical-alert-time">${new Date(alert.erstellt_am).toLocaleTimeString('de-DE')}</span>
+              </div>
+              <div class="critical-alert-message">${alert.nachricht}</div>
+              <div class="critical-alert-actions">
+                <button class="btn-primary" onclick="acknowledgeAlert(${alert.id})">✅ Als gesehen markieren</button>
+                <button class="btn-secondary" onclick="viewPatientDetails(${alert.patient_id})">👤 Patient anzeigen</button>
+              </div>
+            </div>
+          `).join('')}
+          ${alerts.length > 1 ? `
+            <div class="critical-alert-bulk-actions">
+              <button class="btn-warning" onclick="acknowledgeAllAlerts()">✅ Alle als gesehen markieren</button>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  };
+
+  window.acknowledgeAlert = async function(alertId) {
+    try {
+      const button = event.target;
+      const originalText = button.innerHTML;
+      button.innerHTML = '<span class="loading-spinner"></span>Wird verarbeitet...';
+      button.disabled = true;
+
+      const response = await fetch(`/api/notifications/${alertId}/read`, { method: 'PUT' });
+      if (response.ok) {
+        const alertItem = button.closest('.critical-alert-item');
+        if (alertItem) {
+          alertItem.style.opacity = '0';
+          alertItem.style.transform = 'translateX(100%)';
+          setTimeout(() => {
+            alertItem.remove();
+            const remainingAlerts = document.querySelectorAll('.critical-alert-item');
+            if (remainingAlerts.length === 0) {
+              const modal = document.querySelector('.critical-alert-modal');
+              const banner = document.querySelector('.critical-alert-banner');
+              if (modal) modal.remove();
+              if (banner) banner.remove();
+              showNotification('✅ Alle kritischen Alarme bearbeitet!', 'success');
+            } else {
+              showNotification('✅ Alarm als gesehen markiert', 'success');
+            }
+          }, 300);
+        }
+      }
+    } catch (error) {
+      console.error('Error acknowledging alert:', error);
+      showNotification('❌ Fehler beim Markieren des Alarms', 'error');
+    }
+  };
+
+  window.acknowledgeAllAlertsFromBanner = async function() {
+    try {
+      const alerts = window.currentCriticalAlerts || [];
+      const promises = alerts.map(alert => fetch(`/api/notifications/${alert.id}/read`, { method: 'PUT' }));
+      await Promise.all(promises);
+
+      const banner = document.querySelector('.critical-alert-banner');
+      if (banner) banner.remove();
+      showNotification(`🎉 Alle ${alerts.length} Alarme erledigt!`, 'success');
+    } catch (error) {
+      showNotification('❌ Fehler beim Bearbeiten der Alarme', 'error');
+    }
+  };
+
+  window.acknowledgeAllAlerts = async function() {
+    try {
+      const alerts = window.currentCriticalAlerts || [];
+      const promises = alerts.map(alert => fetch(`/api/notifications/${alert.id}/read`, { method: 'PUT' }));
+      await Promise.all(promises);
+
+      const modal = document.querySelector('.critical-alert-modal');
+      const banner = document.querySelector('.critical-alert-banner');
+      if (modal) modal.remove();
+      if (banner) banner.remove();
+      showNotification(`✅ Alle ${alerts.length} Alarme erfolgreich bearbeitet!`, 'success');
+    } catch (error) {
+      showNotification('❌ Fehler beim Bearbeiten aller Alarme', 'error');
+    }
+  };
+
+  window.viewPatientDetails = function(patientId) {
+    showNotification(`Patient-Details für ID ${patientId}`, 'info');
+  };
+
+  function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+      <div class="notification-content">
+        <span class="notification-text">${message}</span>
+        <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+      </div>
+    `;
+    const notificationArea = document.getElementById('notificationArea');
+    notificationArea.appendChild(notification);
+    setTimeout(() => {
+      if (notification.parentElement) notification.remove();
+    }, 5000);
+  }
 });

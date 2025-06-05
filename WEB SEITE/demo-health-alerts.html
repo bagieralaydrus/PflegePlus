@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Health Alerts Demo - PflegeVision</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        .demo-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .demo-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #eee;
+        }
+
+        .demo-header h1 {
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .demo-header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .demo-section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #2d7ff9;
+        }
+
+        .demo-section h2 {
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .patient-list {
+            display: grid;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .patient-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .patient-info h3 {
+            color: #333;
+            margin-bottom: 0.25rem;
+        }
+
+        .patient-details {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .scenario-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.5rem;
+        }
+
+        .scenario-btn {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: white;
+            border: none;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .scenario-btn:hover {
+            background: linear-gradient(135deg, #c82333, #bd2130);
+            transform: translateY(-1px);
+        }
+
+        .scenario-btn.normal {
+            background: linear-gradient(135deg, #28a745, #20c997);
+        }
+
+        .scenario-btn.normal:hover {
+            background: linear-gradient(135deg, #20c997, #17a2b8);
+        }
+
+        .demo-instructions {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .demo-instructions h3 {
+            color: #856404;
+            margin-bottom: 0.5rem;
+        }
+
+        .demo-instructions ol {
+            color: #856404;
+            padding-left: 1.5rem;
+        }
+
+        .demo-instructions li {
+            margin-bottom: 0.5rem;
+        }
+
+        .status-display {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .status-display.show {
+            display: block;
+        }
+
+        .status-display.error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #dc3545;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .navigation-links {
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
+        }
+
+        .nav-link {
+            display: inline-block;
+            margin: 0 1rem;
+            padding: 0.5rem 1rem;
+            background: #2d7ff9;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background 0.3s ease;
+        }
+
+        .nav-link:hover {
+            background: #246ac2;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 1rem;
+            }
+
+            .demo-container {
+                padding: 1rem;
+            }
+
+            .scenario-buttons {
+                grid-template-columns: 1fr;
+            }
+
+            .patient-card {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="demo-container">
+    <div class="demo-header">
+        <h1>🚨 Health Monitoring & Alert System Demo</h1>
+        <p>Testen Sie das kritische Gesundheitswerte-Alarmsystem</p>
+    </div>
+
+    <div class="demo-instructions">
+        <h3>📋 Anweisungen:</h3>
+        <ol>
+            <li>Wählen Sie einen Patienten aus der Liste unten</li>
+            <li>Klicken Sie auf ein Alarm-Szenario</li>
+            <li>Öffnen Sie das <strong>Pflegekraft-Dashboard</strong> oder <strong>Admin-Dashboard</strong></li>
+            <li>Beobachten Sie die kritischen Alarme, die automatisch erscheinen</li>
+            <li>Testen Sie verschiedene Szenarien mit verschiedenen Patienten</li>
+        </ol>
+    </div>
+
+    <div class="demo-section">
+        <h2>👥 Verfügbare Patienten</h2>
+        <div class="patient-list" id="patientList">
+            <div class="patient-card">
+                <div class="patient-info">
+                    <div class="loading"></div>
+                    <span>Lade Patienten...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>🚨 Alarm-Szenarien</h2>
+        <p style="margin-bottom: 1rem; color: #666;">
+            Wählen Sie zunächst einen Patienten aus, dann klicken Sie auf ein Szenario:
+        </p>
+        <div class="scenario-buttons">
+            <button class="scenario-btn" onclick="triggerScenario('high_blood_pressure')" disabled>
+                🩸 Hoher Blutdruck<br>
+                <small>(195/125 mmHg)</small>
+            </button>
+            <button class="scenario-btn" onclick="triggerScenario('low_oxygen')" disabled>
+                🫁 Niedrige O2-Sättigung<br>
+                <small>(87% + Atemnot)</small>
+            </button>
+            <button class="scenario-btn" onclick="triggerScenario('high_fever')" disabled>
+                🌡️ Hohes Fieber<br>
+                <small>(39.8°C + Schwäche)</small>
+            </button>
+            <button class="scenario-btn" onclick="triggerScenario('multiple_critical')" disabled>
+                ⚠️ Mehrfach-Kritisch<br>
+                <small>(Notfall-Szenario)</small>
+            </button>
+            <button class="scenario-btn normal" onclick="triggerScenario('normal')" disabled>
+                ✅ Normale Werte<br>
+                <small>(Kein Alarm)</small>
+            </button>
+        </div>
+    </div>
+
+    <div class="status-display" id="statusDisplay">
+        <strong>Status:</strong> <span id="statusText"></span>
+    </div>
+
+    <div class="navigation-links">
+        <a href="/pflegekraft/dashboard.html" class="nav-link" target="_blank">
+            👨‍⚕️ Pflegekraft Dashboard
+        </a>
+        <a href="/admin" class="nav-link" target="_blank">
+            👨‍💼 Admin Dashboard
+        </a>
+        <a href="/" class="nav-link">
+            🏠 Hauptseite
+        </a>
+    </div>
+</div>
+
+<script>
+    let selectedPatientId = null;
+    let patients = [];
+
+    // Load patients on page load
+    document.addEventListener('DOMContentLoaded', async () => {
+        await loadPatients();
+    });
+
+    async function loadPatients() {
+        try {
+            const response = await fetch('/api/demo/patients');
+            const data = await response.json();
+
+            if (data.success) {
+                patients = data.patients;
+                displayPatients(patients);
+            } else {
+                showStatus('Fehler beim Laden der Patienten', 'error');
+            }
+        } catch (error) {
+            console.error('Error loading patients:', error);
+            showStatus('Verbindungsfehler beim Laden der Patienten', 'error');
+        }
+    }
+
+    function displayPatients(patientList) {
+        const container = document.getElementById('patientList');
+
+        if (patientList.length === 0) {
+            container.innerHTML = `
+                    <div class="patient-card">
+                        <div class="patient-info">
+                            <h3>Keine Patienten gefunden</h3>
+                            <div class="patient-details">Bitte stellen Sie sicher, dass Patienten in der Datenbank vorhanden sind.</div>
+                        </div>
+                    </div>
+                `;
+            return;
+        }
+
+        container.innerHTML = patientList.map(patient => `
+                <div class="patient-card" onclick="selectPatient(${patient.id})" id="patient-${patient.id}">
+                    <div class="patient-info">
+                        <h3>${patient.name}</h3>
+                        <div class="patient-details">
+                            📍 ${patient.standort} | 🛏️ Zimmer ${patient.zimmer_nummer || 'N/A'} | 👨‍⚕️ ${patient.pflegekraft}
+                        </div>
+                    </div>
+                    <div class="select-indicator">
+                        <span style="color: #2d7ff9; font-weight: bold;">Auswählen</span>
+                    </div>
+                </div>
+            `).join('');
+    }
+
+    function selectPatient(patientId) {
+        selectedPatientId = patientId;
+
+        // Update UI to show selection
+        document.querySelectorAll('.patient-card').forEach(card => {
+            card.style.background = 'white';
+            card.style.borderColor = '#ddd';
+        });
+
+        const selectedCard = document.getElementById(`patient-${patientId}`);
+        selectedCard.style.background = '#e3f2fd';
+        selectedCard.style.borderColor = '#2d7ff9';
+
+        // Enable scenario buttons
+        document.querySelectorAll('.scenario-btn').forEach(btn => {
+            btn.disabled = false;
+        });
+
+        const selectedPatient = patients.find(p => p.id === patientId);
+        showStatus(`Patient ausgewählt: ${selectedPatient.name}`, 'success');
+    }
+
+    async function triggerScenario(scenario) {
+        if (!selectedPatientId) {
+            showStatus('Bitte wählen Sie zunächst einen Patienten aus', 'error');
+            return;
+        }
+
+        const selectedPatient = patients.find(p => p.id === selectedPatientId);
+        const scenarioNames = {
+            'high_blood_pressure': 'Hoher Blutdruck',
+            'low_oxygen': 'Niedrige Sauerstoffsättigung',
+            'high_fever': 'Hohes Fieber',
+            'multiple_critical': 'Mehrfach-kritische Werte',
+            'normal': 'Normale Werte'
+        };
+
+        try {
+            showStatus(`Trigger ${scenarioNames[scenario]} für ${selectedPatient.name}...`, 'loading');
+
+            const response = await fetch('/api/demo/critical-health', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    patientId: selectedPatientId,
+                    scenario: scenario
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                if (scenario === 'normal') {
+                    showStatus(`✅ Normale Gesundheitswerte für ${selectedPatient.name} eingetragen. Kein Alarm ausgelöst.`, 'success');
+                } else {
+                    showStatus(`🚨 KRITISCHER ALARM ausgelöst für ${selectedPatient.name}! Öffnen Sie das Dashboard, um die Benachrichtigungen zu sehen.`, 'success');
+
+                    // Flash effect for critical scenarios
+                    document.body.style.background = '#ffebee';
+                    setTimeout(() => {
+                        document.body.style.background = 'linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%)';
+                    }, 500);
+                }
+            } else {
+                throw new Error(result.message || 'Unbekannter Fehler');
+            }
+
+        } catch (error) {
+            console.error('Scenario trigger error:', error);
+            showStatus(`Fehler beim Auslösen des Szenarios: ${error.message}`, 'error');
+        }
+    }
+
+    function showStatus(message, type = 'success') {
+        const statusDisplay = document.getElementById('statusDisplay');
+        const statusText = document.getElementById('statusText');
+
+        statusDisplay.className = `status-display show ${type}`;
+
+        if (type === 'loading') {
+            statusText.innerHTML = `<span class="loading"></span>${message}`;
+        } else {
+            statusText.textContent = message;
+        }
+
+        // Auto-hide after 10 seconds for success messages
+        if (type === 'success') {
+            setTimeout(() => {
+                statusDisplay.classList.remove('show');
+            }, 10000);
+        }
+    }
+
+    // Add some interactive effects
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('scenario-btn') && !e.target.disabled) {
+            e.target.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                e.target.style.transform = '';
+            }, 150);
+        }
+    });
+</script>
+</body>
+</html>
