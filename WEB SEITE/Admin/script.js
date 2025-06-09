@@ -367,6 +367,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateDashboardUI(dashboard) {
         // Update admin username
+        // ADD THIS DEBUG CODE RIGHT AT THE START:
+        console.log('🔍 Debug: Dashboard data received:', dashboard);
+        console.log('🔍 Debug: Location statistics:', dashboard.location_statistics);
+        if (dashboard.location_statistics && dashboard.location_statistics.patients) {
+            console.log('🔍 Debug: Patient locations:', dashboard.location_statistics.patients);
+            dashboard.location_statistics.patients.forEach(loc => {
+                console.log(`📍 ${loc.standort}: ${loc.total_patients} patients`);
+            });
+        }
         document.getElementById('adminUsername').textContent = currentUser.username || 'Administrator';
 
         // Update statistics
@@ -377,6 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let totalPflegekraefte = 0;
             let krefeldPatients = 0;
             let moenchengladbachPatients = 0;
+            let zuhausePatients = 0;
 
             // Process patient statistics
             stats.patients.forEach(location => {
@@ -387,6 +397,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     krefeldPatients = count;
                 } else if (location.standort === 'Mönchengladbach') {
                     moenchengladbachPatients = count;
+                } else if (location.standort === 'Zuhause') {
+                    zuhausePatients = count;
                 }
             });
 
@@ -400,6 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('totalPflegekraefte').textContent = totalPflegekraefte;
             document.getElementById('krefeld_patients').textContent = krefeldPatients;
             document.getElementById('moenchengladbach_patients').textContent = moenchengladbachPatients;
+            document.getElementById('zuhause_patients').textContent = zuhausePatients;
         }
 
         // Update recent activities
