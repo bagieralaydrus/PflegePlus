@@ -72,6 +72,13 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .patient-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
 
         .patient-info h3 {
@@ -102,16 +109,21 @@
             transition: all 0.3s ease;
         }
 
-        .scenario-btn:hover {
+        .scenario-btn:hover:not(:disabled) {
             background: linear-gradient(135deg, #c82333, #bd2130);
             transform: translateY(-1px);
+        }
+
+        .scenario-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .scenario-btn.normal {
             background: linear-gradient(135deg, #28a745, #20c997);
         }
 
-        .scenario-btn.normal:hover {
+        .scenario-btn.normal:hover:not(:disabled) {
             background: linear-gradient(135deg, #20c997, #17a2b8);
         }
 
@@ -144,6 +156,7 @@
             padding: 1rem;
             margin-top: 1rem;
             display: none;
+            color: #155724;
         }
 
         .status-display.show {
@@ -154,6 +167,12 @@
             background: #f8d7da;
             border-color: #f5c6cb;
             color: #721c24;
+        }
+
+        .status-display.loading {
+            background: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
         }
 
         .loading {
@@ -211,6 +230,15 @@
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 1rem;
+            }
+
+            .navigation-links {
+                text-align: center;
+            }
+
+            .nav-link {
+                display: block;
+                margin: 0.5rem 0;
             }
         }
     </style>
@@ -295,11 +323,11 @@
     let selectedPatientId = null;
     let patients = [];
 
-    // Load patients on page load
     document.addEventListener('DOMContentLoaded', async () => {
         await loadPatients();
     });
 
+    // Patienten vom Server laden
     async function loadPatients() {
         try {
             const response = await fetch('/api/demo/patients');
@@ -317,40 +345,42 @@
         }
     }
 
+    // Patientenliste in der UI anzeigen
     function displayPatients(patientList) {
         const container = document.getElementById('patientList');
 
         if (patientList.length === 0) {
             container.innerHTML = `
-                    <div class="patient-card">
-                        <div class="patient-info">
-                            <h3>Keine Patienten gefunden</h3>
-                            <div class="patient-details">Bitte stellen Sie sicher, dass Patienten in der Datenbank vorhanden sind.</div>
-                        </div>
+                <div class="patient-card">
+                    <div class="patient-info">
+                        <h3>Keine Patienten gefunden</h3>
+                        <div class="patient-details">Bitte stellen Sie sicher, dass Patienten in der Datenbank vorhanden sind.</div>
                     </div>
-                `;
+                </div>
+            `;
             return;
         }
 
         container.innerHTML = patientList.map(patient => `
-                <div class="patient-card" onclick="selectPatient(${patient.id})" id="patient-${patient.id}">
-                    <div class="patient-info">
-                        <h3>${patient.name}</h3>
-                        <div class="patient-details">
-                            📍 ${patient.standort} | 🛏️ Zimmer ${patient.zimmer_nummer || 'N/A'} | 👨‍⚕️ ${patient.pflegekraft}
-                        </div>
-                    </div>
-                    <div class="select-indicator">
-                        <span style="color: #2d7ff9; font-weight: bold;">Auswählen</span>
+            <div class="patient-card" onclick="selectPatient(${patient.id})" id="patient-${patient.id}">
+                <div class="patient-info">
+                    <h3>${patient.name}</h3>
+                    <div class="patient-details">
+                        📍 ${patient.standort} | 🛏️ Zimmer ${patient.zimmer_nummer || 'N/A'} | 👨‍⚕️ ${patient.pflegekraft}
                     </div>
                 </div>
-            `).join('');
+                <div class="select-indicator">
+                    <span style="color: #2d7ff9; font-weight: bold;">Auswählen</span>
+                </div>
+            </div>
+        `).join('');
     }
 
+    // Patient auswählen und UI aktualisieren
     function selectPatient(patientId) {
         selectedPatientId = patientId;
 
-        // Update UI to show selection
+        // Visuelle Auswahl aktualisieren
         document.querySelectorAll('.patient-card').forEach(card => {
             card.style.background = 'white';
             card.style.borderColor = '#ddd';
@@ -360,7 +390,7 @@
         selectedCard.style.background = '#e3f2fd';
         selectedCard.style.borderColor = '#2d7ff9';
 
-        // Enable scenario buttons
+        // Szenario-Buttons aktivieren
         document.querySelectorAll('.scenario-btn').forEach(btn => {
             btn.disabled = false;
         });
@@ -369,6 +399,7 @@
         showStatus(`Patient ausgewählt: ${selectedPatient.name}`, 'success');
     }
 
+    // Alarm-Szenario auslösen
     async function triggerScenario(scenario) {
         if (!selectedPatientId) {
             showStatus('Bitte wählen Sie zunächst einen Patienten aus', 'error');
@@ -406,7 +437,7 @@
                 } else {
                     showStatus(`🚨 KRITISCHER ALARM ausgelöst für ${selectedPatient.name}! Öffnen Sie das Dashboard, um die Benachrichtigungen zu sehen.`, 'success');
 
-                    // Flash effect for critical scenarios
+                    // Visueller Effekt für kritische Szenarien
                     document.body.style.background = '#ffebee';
                     setTimeout(() => {
                         document.body.style.background = 'linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%)';
@@ -422,6 +453,7 @@
         }
     }
 
+    // Status-Nachricht anzeigen
     function showStatus(message, type = 'success') {
         const statusDisplay = document.getElementById('statusDisplay');
         const statusText = document.getElementById('statusText');
@@ -434,7 +466,7 @@
             statusText.textContent = message;
         }
 
-        // Auto-hide after 10 seconds for success messages
+        // Automatisches Ausblenden nach 10 Sekunden für Erfolgsmeldungen
         if (type === 'success') {
             setTimeout(() => {
                 statusDisplay.classList.remove('show');
@@ -442,7 +474,7 @@
         }
     }
 
-    // Add some interactive effects
+    // Button-Klick-Effekte
     document.addEventListener('click', (e) => {
         if (e.target.classList.contains('scenario-btn') && !e.target.disabled) {
             e.target.style.transform = 'scale(0.95)';
