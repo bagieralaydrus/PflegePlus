@@ -6,7 +6,7 @@
 }
 
 :root {
-  /* Modern Color Palette - Professional & Clean */
+  /* Modern Color Palette */
   --primary-blue: #0066ff;
   --primary-blue-dark: #0052cc;
   --primary-blue-light: #3385ff;
@@ -22,7 +22,7 @@
   --error: #ef4444;
   --success: #10b981;
 
-  /* Modern Shadows - Subtle & Sophisticated */
+  /* Modern Shadows */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
@@ -59,9 +59,9 @@ html, body {
   padding: 0;
 }
 
-/* ========== PARTICLE CANVAS - BULLETPROOF VERSION ========== */
+/* ========== PARTICLE CANVAS ========== */
 #bg {
-  position: fixed; /* Changed from absolute to fixed */
+  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
@@ -112,7 +112,7 @@ html, body {
   100% { transform: rotate(360deg); }
 }
 
-/* ========== MAIN LAYOUT - ENHANCED RESPONSIVE ========== */
+/* ========== MAIN LAYOUT ========== */
 .main-container {
   position: relative;
   display: flex;
@@ -120,7 +120,7 @@ html, body {
   z-index: 10;
 }
 
-/* ========== LEFT SIDE - RESPONSIVE BRANDING ========== */
+/* ========== LEFT SIDE ========== */
 .branding-section {
   flex: 1;
   display: flex;
@@ -299,7 +299,7 @@ html, body {
   font-weight: 400;
 }
 
-/* ========== ENHANCED RESPONSIVE FORM STYLES ========== */
+
 .login-form {
   display: flex;
   flex-direction: column;
@@ -394,7 +394,7 @@ html, body {
   transform: scale(1.1);
 }
 
-/* ========== ENHANCED RESPONSIVE DATE INPUT GROUP ========== */
+
 .date-input-group {
   display: grid;
   grid-template-columns: 1fr 2fr 1fr;
@@ -490,7 +490,7 @@ html, body {
   margin-top: 1.5rem;
   position: relative;
   overflow: hidden;
-  min-height: 52px; /* Ensure good touch target */
+  min-height: 52px;
 }
 
 .login-button::before {
@@ -566,7 +566,7 @@ html, body {
   flex-shrink: 0;
 }
 
-/* ========== ENHANCED FORM STATES ========== */
+
 .form-group.error input,
 .form-group.error select {
   border-color: var(--error);
@@ -621,7 +621,7 @@ html, body {
   20%, 40%, 60%, 80% { transform: translateX(4px); }
 }
 
-/* ========== ENHANCED RESPONSIVE DESIGN ========== */
+
 
 /* Large Tablets and Small Desktops */
 @media (max-width: 1200px) {
@@ -900,7 +900,7 @@ html, body {
   }
 }
 
-/* Dark Mode Support (if needed) */
+
 @media (prefers-color-scheme: dark) {
   /* Already optimized for dark theme */
 }

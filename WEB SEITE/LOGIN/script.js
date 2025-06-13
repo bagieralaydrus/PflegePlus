@@ -1,23 +1,23 @@
-// ========== PARTICLE BACKGROUND - BULLETPROOF VERSION ==========
-console.log('🚀 Starting particles...');
+// Animierter Partikelhintergrund
+console.log('🚀 Partikelsystem wird gestartet...');
 
 const canvas = document.getElementById('bg');
 const ctx = canvas.getContext('2d');
 
-// Set canvas size
+// Canvas-Größe anpassen
 function resize() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-  console.log('Canvas size:', canvas.width, 'x', canvas.height);
+  console.log('Canvas-Größe:', canvas.width, 'x', canvas.height);
 }
 resize();
 window.addEventListener('resize', resize);
 
-// Particle array
+// Partikel-Array
 const particles = [];
 const particleCount = 100;
 
-// Create particles
+// Partikel erstellen
 for (let i = 0; i < particleCount; i++) {
   particles.push({
     x: Math.random() * canvas.width,
@@ -29,26 +29,26 @@ for (let i = 0; i < particleCount; i++) {
   });
 }
 
-console.log('✨ Created', particles.length, 'particles');
+console.log('✨ Erstellt', particles.length, 'Partikel');
 
-// Animation loop
+// Animationsschleife
 function animate() {
-  // Clear canvas
+  // Canvas leeren
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Draw particles
+  // Partikel zeichnen
   particles.forEach(particle => {
-    // Update position
+    // Position aktualisieren
     particle.x += particle.speedX;
     particle.y += particle.speedY;
 
-    // Wrap around screen
+    // Am Bildschirmrand umkehren
     if (particle.x < 0) particle.x = canvas.width;
     if (particle.x > canvas.width) particle.x = 0;
     if (particle.y < 0) particle.y = canvas.height;
     if (particle.y > canvas.height) particle.y = 0;
 
-    // Draw particle
+    // Partikel zeichnen
     ctx.fillStyle = `rgba(255, 255, 255, ${particle.opacity})`;
     ctx.beginPath();
     ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
@@ -58,45 +58,45 @@ function animate() {
   requestAnimationFrame(animate);
 }
 
-// Start animation
+// Animation starten
 animate();
-console.log('🎬 Animation started!');
+console.log('🎬 Animation gestartet!');
 
-// ========== FORM HANDLING & LOGIN LOGIC ==========
+// Anmeldesystem und Formularverarbeitung
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('🔐 Login form system initializing...');
+  console.log('🔐 Anmeldesystem wird initialisiert...');
 
   const form = document.getElementById('loginForm');
   const loadingOverlay = document.getElementById('loadingOverlay');
 
-  // Setup form event listeners
+  // Formular-Event-Listener einrichten
   form.addEventListener('submit', handleFormSubmission);
   setupFormValidation();
   setupAccessibilityFeatures();
 
-  console.log('✅ Login form system ready!');
+  console.log('✅ Anmeldesystem bereit!');
 });
 
-// Enhanced form submission with modern UX
+// Erweiterte Formularübermittlung mit moderner UX
 async function handleFormSubmission(e) {
   e.preventDefault();
-  console.log('📋 Form submission started...');
+  console.log('📋 Formularübermittlung gestartet...');
 
   const username = document.getElementById('username').value.trim();
   const day = document.getElementById('day').value.padStart(2, '0');
   const month = document.getElementById('month').value;
   const year = document.getElementById('year').value;
 
-  // Comprehensive validation
+  // Umfassende Validierung
   if (!validateForm(username, day, month, year)) {
-    console.log('❌ Form validation failed');
+    console.log('❌ Formularvalidierung fehlgeschlagen');
     return;
   }
 
   const birthdate = `${year}-${month}-${day}`;
-  console.log('📝 Submitting login for user:', username);
+  console.log('📝 Anmeldung übermittelt für Benutzer:', username);
 
-  // Show loading state
+  // Ladezustand anzeigen
   showLoadingState();
 
   try {
@@ -114,56 +114,54 @@ async function handleFormSubmission(e) {
     const data = await response.json();
 
     if (data.success) {
-      console.log('✅ Login successful for:', data.user.username);
+      console.log('✅ Anmeldung erfolgreich für:', data.user.username);
 
-      // Store user session
-// Replace this section in your script.js:
-// Store user session (update to include role)
+      // Benutzersitzung speichern (mit Rolle für Weiterleitung)
       sessionStorage.setItem('currentUser', JSON.stringify({
         id: data.user.id,
         username: data.user.username,
         type: data.user.type,
-        role: data.user.role  // Add this line
+        role: data.user.role
       }));
 
-// Update the redirect logic:
+      // Weiterleitung basierend auf Benutzertyp und Rolle
       setTimeout(() => {
         if (data.user.type === 'mitarbeiter') {
           if (data.user.role === 'administrator') {
-            console.log('👑 Redirecting to Admin dashboard...');
+            console.log('👑 Weiterleitung zum Admin-Dashboard...');
             window.location.href = '/admin/index.html';
           } else {
-            console.log('👨‍⚕️ Redirecting to Pflegekraft dashboard...');
+            console.log('👨‍⚕️ Weiterleitung zum Pflegekraft-Dashboard...');
             window.location.href = '/pflegekraft/dashboard.html';
           }
         } else if (data.user.type === 'patient') {
-          console.log('👤 Redirecting to Patient dashboard...');
+          console.log('👤 Weiterleitung zum Patienten-Dashboard...');
           window.location.href = '/patient/';
         }
       }, 1500);
 
     } else {
-      console.log('❌ Login failed:', data.message);
+      console.log('❌ Anmeldung fehlgeschlagen:', data.message);
       hideLoadingState();
       showErrorMessage(data.message || 'Anmeldung fehlgeschlagen');
       shakeForm();
     }
   } catch (error) {
-    console.error('💥 Network error during login:', error);
+    console.error('💥 Netzwerkfehler während der Anmeldung:', error);
     hideLoadingState();
     showErrorMessage('Verbindungsfehler. Bitte versuchen Sie es später erneut.');
     shakeForm();
   }
 }
 
-// ========== FORM VALIDATION SYSTEM ==========
+// Formularvalidierungssystem
 function validateForm(username, day, month, year) {
   let isValid = true;
 
-  // Clear previous errors
+  // Vorherige Fehler löschen
   clearFormErrors();
 
-  // Username validation
+  // Benutzername-Validierung
   if (!username || username.length < 2) {
     setFieldError('username', 'Mindestens 2 Zeichen erforderlich');
     isValid = false;
@@ -172,7 +170,7 @@ function validateForm(username, day, month, year) {
     isValid = false;
   }
 
-  // Date validation
+  // Datumsvalidierung
   if (!day || parseInt(day) < 1 || parseInt(day) > 31) {
     setFieldError('day', 'Gültiger Tag erforderlich (1-31)');
     isValid = false;
@@ -188,24 +186,24 @@ function validateForm(username, day, month, year) {
     isValid = false;
   }
 
-  // Complete date validation
+  // Vollständige Datumsvalidierung
   if (day && month && year) {
     const date = new Date(year, month - 1, day);
     const today = new Date();
 
-    // Check if date is valid
+    // Prüfen ob Datum gültig ist
     if (date.getDate() != day || date.getMonth() != month - 1 || date.getFullYear() != year) {
       setFieldError('day', 'Ungültiges Datum');
       isValid = false;
     }
 
-    // Check if date is not in the future
+    // Prüfen ob Datum nicht in der Zukunft liegt
     if (date > today) {
       setFieldError('day', 'Datum liegt in der Zukunft');
       isValid = false;
     }
 
-    // Age validation
+    // Altersvalidierung
     const age = today.getFullYear() - date.getFullYear();
     if (age > 120) {
       setFieldError('year', 'Unrealistisches Alter');
@@ -216,7 +214,7 @@ function validateForm(username, day, month, year) {
   return isValid;
 }
 
-// ========== FORM ERROR HANDLING ==========
+// Formular-Fehlerbehandlung
 function clearFormErrors() {
   document.querySelectorAll('.form-group').forEach(group => {
     group.classList.remove('error', 'success');
@@ -261,7 +259,7 @@ function setFieldSuccess(fieldName) {
   formGroup.classList.add('success');
 }
 
-// ========== UI STATE MANAGEMENT ==========
+// UI-Zustandsverwaltung
 function showLoadingState() {
   const overlay = document.getElementById('loadingOverlay');
   const button = document.querySelector('.login-button');
@@ -271,7 +269,7 @@ function showLoadingState() {
   button.disabled = true;
   buttonText.textContent = 'Wird angemeldet...';
 
-  console.log('⏳ Loading state activated');
+  console.log('⏳ Ladezustand aktiviert');
 }
 
 function hideLoadingState() {
@@ -283,7 +281,7 @@ function hideLoadingState() {
   button.disabled = false;
   buttonText.textContent = 'Anmelden';
 
-  console.log('✅ Loading state deactivated');
+  console.log('✅ Ladezustand deaktiviert');
 }
 
 function showSuccessState() {
@@ -291,16 +289,16 @@ function showSuccessState() {
   const buttonText = button.querySelector('.button-text');
   const buttonIcon = button.querySelector('.button-icon');
 
-  // Update button appearance
+  // Button-Erscheinungsbild aktualisieren
   button.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
   buttonText.textContent = 'Erfolgreich angemeldet!';
 
-  // Update icon to checkmark
+  // Icon zu Häkchen ändern
   buttonIcon.innerHTML = `
     <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   `;
 
-  // Add success animation to container
+  // Erfolgsanimation zum Container hinzufügen
   const container = document.querySelector('.login-container');
   container.style.transform = 'scale(1.02)';
   container.style.boxShadow = '0 25px 50px -12px rgba(16, 185, 129, 0.25)';
@@ -309,11 +307,11 @@ function showSuccessState() {
     container.style.transform = 'scale(1)';
   }, 300);
 
-  console.log('🎉 Success state displayed');
+  console.log('🎉 Erfolgszustand angezeigt');
 }
 
 function showErrorMessage(message) {
-  // Remove existing notifications
+  // Bestehende Benachrichtigungen entfernen
   document.querySelectorAll('.error-notification').forEach(el => el.remove());
 
   const notification = document.createElement('div');
@@ -356,7 +354,7 @@ function showErrorMessage(message) {
     " onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.8'">×</button>
   `;
 
-  // Add animation styles if not already present
+  // Animationsstile hinzufügen falls noch nicht vorhanden
   if (!document.querySelector('#notification-animations')) {
     const style = document.createElement('style');
     style.id = 'notification-animations';
@@ -377,7 +375,7 @@ function showErrorMessage(message) {
 
   document.body.appendChild(notification);
 
-  // Auto-remove notification
+  // Benachrichtigung automatisch entfernen
   setTimeout(() => {
     if (notification.parentElement) {
       notification.style.animation = 'slideInRight 0.3s ease-out reverse';
@@ -385,7 +383,7 @@ function showErrorMessage(message) {
     }
   }, 5000);
 
-  console.log('🚨 Error notification displayed:', message);
+  console.log('🚨 Fehlerbenachrichtigung angezeigt:', message);
 }
 
 function shakeForm() {
@@ -396,19 +394,19 @@ function shakeForm() {
   }, 600);
 }
 
-// ========== REAL-TIME FORM VALIDATION ==========
+// Echtzeit-Formularvalidierung
 function setupFormValidation() {
   const usernameField = document.getElementById('username');
   const dayField = document.getElementById('day');
   const monthField = document.getElementById('month');
   const yearField = document.getElementById('year');
 
-  // Username validation
+  // Benutzername-Validierung
   usernameField.addEventListener('input', (e) => {
     const value = e.target.value.trim();
     const formGroup = e.target.closest('.form-group');
 
-    // Clear existing error
+    // Bestehende Fehler löschen
     formGroup.classList.remove('error');
     const errorMsg = formGroup.querySelector('.error-message');
     if (errorMsg) errorMsg.remove();
@@ -424,13 +422,13 @@ function setupFormValidation() {
     }
   });
 
-  // Date field validation
+  // Datumsfeld-Validierung
   [dayField, monthField, yearField].forEach(field => {
     field.addEventListener('change', validateDateFields);
     field.addEventListener('input', validateDateFields);
   });
 
-  // Enhanced placeholder hints
+  // Erweiterte Platzhalter-Hinweise
   setupPlaceholderHints();
 }
 
@@ -439,7 +437,7 @@ function validateDateFields() {
   const month = document.getElementById('month').value;
   const year = document.getElementById('year').value;
 
-  // Clear date field errors
+  // Datumsfeld-Fehler löschen
   ['day', 'month', 'year'].forEach(fieldName => {
     const formGroup = document.getElementById(fieldName).closest('.form-group');
     formGroup.classList.remove('error', 'success');
@@ -447,7 +445,7 @@ function validateDateFields() {
     if (errorMsg) errorMsg.remove();
   });
 
-  // Individual field validation
+  // Einzelfeld-Validierung
   if (day && (parseInt(day) < 1 || parseInt(day) > 31)) {
     setFieldError('day', 'Tag: 1-31');
     return;
@@ -458,7 +456,7 @@ function validateDateFields() {
     return;
   }
 
-  // Complete date validation
+  // Vollständige Datumsvalidierung
   if (day && month && year) {
     const date = new Date(year, month - 1, day);
     const today = new Date();
@@ -479,21 +477,21 @@ function validateDateFields() {
       return;
     }
 
-    // All validations passed
+    // Alle Validierungen bestanden
     setFieldSuccess('day');
     setFieldSuccess('month');
     setFieldSuccess('year');
   }
 }
 
-// ========== ACCESSIBILITY & UX ENHANCEMENTS ==========
+// Barrierefreiheit & UX-Verbesserungen
 function setupAccessibilityFeatures() {
-  // Auto-focus username field
+  // Benutzername-Feld automatisch fokussieren
   window.addEventListener('load', () => {
     document.getElementById('username').focus();
   });
 
-  // Keyboard navigation
+  // Tastaturnavigation
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && e.target.closest('.login-form')) {
       e.preventDefault();
@@ -506,7 +504,7 @@ function setupAccessibilityFeatures() {
     }
   });
 
-  // Enhanced tooltips
+  // Erweiterte Tooltips
   setupTooltips();
 }
 
@@ -515,7 +513,7 @@ function setupPlaceholderHints() {
   const dayField = document.getElementById('day');
   const yearField = document.getElementById('year');
 
-  // Dynamic placeholder hints
+  // Dynamische Platzhalter-Hinweise
   usernameField.addEventListener('focus', () => {
     usernameField.placeholder = 'z.B. max.mustermann oder patient123';
   });
@@ -557,8 +555,7 @@ function setupTooltips() {
   });
 }
 
-// ========== PERFORMANCE MONITORING ==========
-// Monitor particle system performance
+// Performance-Überwachung für Partikelsystem
 let frameCount = 0;
 let lastTime = performance.now();
 
@@ -566,13 +563,13 @@ function monitorPerformance() {
   frameCount++;
   const currentTime = performance.now();
 
-  if (currentTime - lastTime >= 5000) { // Every 5 seconds
+  if (currentTime - lastTime >= 5000) { // Alle 5 Sekunden
     const fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
-    console.log(`🎯 Particle system FPS: ${fps}`);
+    console.log(`🎯 Partikelsystem FPS: ${fps}`);
 
-    // Adjust particle count if performance is poor
+    // Partikelanzahl reduzieren bei schlechter Performance
     if (fps < 30 && particles.length > 50) {
-      console.log('⚡ Reducing particle count for better performance');
+      console.log('⚡ Partikelanzahl für bessere Performance reduziert');
       particles.splice(0, 20);
     }
 
@@ -583,7 +580,7 @@ function monitorPerformance() {
   requestAnimationFrame(monitorPerformance);
 }
 
-// Start performance monitoring
+// Performance-Überwachung starten
 monitorPerformance();
 
-console.log('🚀 PflegeVision login system fully initialized!');
+console.log('🚀 PflegeVision Anmeldesystem vollständig initialisiert!');
