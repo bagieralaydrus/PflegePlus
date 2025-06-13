@@ -1,6 +1,6 @@
 const { Pool } = require('pg');
 
-// Use same database config as your server.js
+// Datenbankverbindung mit gleicher Konfiguration wie server.js
 const pool = new Pool({
     user: 'postgres',
     host: 'localhost',
@@ -11,61 +11,61 @@ const pool = new Pool({
 
 class PatientAssignmentAlgorithm {
 
-    // Get current workload for each Pflegekraft
+    // Aktuelle Arbeitsbelastung für jede Pflegekraft abrufen
     async getCurrentWorkloads() {
         const query = `
-      SELECT 
-        m.id,
-        m.benutzername,
-        COUNT(pa.patient_id) as current_patients
-      FROM mitarbeiter m
-      LEFT JOIN patient_zuweisung pa ON m.id = pa.mitarbeiter_id 
-        AND pa.status = 'active'
-      GROUP BY m.id, m.benutzername
-      ORDER BY current_patients ASC, m.id ASC
-    `;
+            SELECT
+                m.id,
+                m.benutzername,
+                COUNT(pa.patient_id) as current_patients
+            FROM mitarbeiter m
+                     LEFT JOIN patient_zuweisung pa ON m.id = pa.mitarbeiter_id
+                AND pa.status = 'active'
+            GROUP BY m.id, m.benutzername
+            ORDER BY current_patients ASC, m.id ASC
+        `;
 
         const result = await pool.query(query);
         return result.rows;
     }
 
-    // Find Pflegekraft with lowest patient count (under 24)
+    // Pflegekraft mit niedrigster Patientenzahl finden (unter 24)
     async findAvailablePflegekraft() {
         const workloads = await this.getCurrentWorkloads();
 
-        // Find first Pflegekraft with less than 24 patients
+        // Erste Pflegekraft mit weniger als 24 Patienten finden
         const available = workloads.find(pf => pf.current_patients < 24);
 
         if (!available) {
-            throw new Error('All Pflegekräfte are at maximum capacity (24 patients each)');
+            throw new Error('Alle Pflegekräfte haben maximale Kapazität erreicht (24 Patienten je Pflegekraft)');
         }
 
         return available;
     }
 
-    // Assign a patient to best available Pflegekraft
+    // Patient der besten verfügbaren Pflegekraft zuweisen
     async assignPatient(patientId) {
         try {
-            // Check if patient is already assigned
+            // Prüfen ob Patient bereits zugewiesen ist
             const existingQuery = `
-        SELECT * FROM patient_zuweisung 
-        WHERE patient_id = $1 AND status = 'active'
-      `;
+                SELECT * FROM patient_zuweisung
+                WHERE patient_id = $1 AND status = 'active'
+            `;
             const existing = await pool.query(existingQuery, [patientId]);
 
             if (existing.rows.length > 0) {
-                throw new Error(`Patient ${patientId} is already assigned`);
+                throw new Error(`Patient ${patientId} ist bereits zugewiesen`);
             }
 
-            // Find best Pflegekraft
+            // Beste verfügbare Pflegekraft finden
             const pflegekraft = await this.findAvailablePflegekraft();
 
-            // Create assignment
+            // Zuweisung erstellen
             const assignQuery = `
-        INSERT INTO patient_zuweisung (mitarbeiter_id, patient_id, status)
-        VALUES ($1, $2, 'active')
-        RETURNING *
-      `;
+                INSERT INTO patient_zuweisung (mitarbeiter_id, patient_id, status)
+                VALUES ($1, $2, 'active')
+                    RETURNING *
+            `;
 
             const result = await pool.query(assignQuery, [pflegekraft.id, patientId]);
 
@@ -73,7 +73,7 @@ class PatientAssignmentAlgorithm {
                 success: true,
                 assignment: result.rows[0],
                 pflegekraft: pflegekraft,
-                message: `Patient ${patientId} assigned to ${pflegekraft.benutzername}`
+                message: `Patient ${patientId} wurde ${pflegekraft.benutzername} zugewiesen`
             };
 
         } catch (error) {
@@ -84,31 +84,31 @@ class PatientAssignmentAlgorithm {
         }
     }
 
-    // Handle patient transfer/discharge
+    // Patiententransfer/Entlassung verwalten
     async transferPatient(patientId, reason = 'transferred') {
         try {
-            // Mark current assignment as inactive
+            // Aktuelle Zuweisung als inaktiv markieren
             const updateQuery = `
-        UPDATE patient_zuweisung 
-        SET status = $1 
-        WHERE patient_id = $2 AND status = 'active'
-        RETURNING mitarbeiter_id
-      `;
+                UPDATE patient_zuweisung
+                SET status = $1
+                WHERE patient_id = $2 AND status = 'active'
+                    RETURNING mitarbeiter_id
+            `;
 
             const result = await pool.query(updateQuery, [reason, patientId]);
 
             if (result.rows.length === 0) {
-                throw new Error(`No active assignment found for patient ${patientId}`);
+                throw new Error(`Keine aktive Zuweisung für Patient ${patientId} gefunden`);
             }
 
             const oldPflegekraftId = result.rows[0].mitarbeiter_id;
 
-            // Try to assign a new patient to the Pflegekraft who lost one
+            // Versuchen, der Pflegekraft einen neuen Patienten zuzuweisen
             await this.fillEmptySlot(oldPflegekraftId);
 
             return {
                 success: true,
-                message: `Patient ${patientId} ${reason}, workload rebalanced`
+                message: `Patient ${patientId} ${reason}, Arbeitsbelastung wurde ausgeglichen`
             };
 
         } catch (error) {
@@ -119,16 +119,16 @@ class PatientAssignmentAlgorithm {
         }
     }
 
-    // Fill empty slot when a patient leaves
+    // Freien Platz füllen wenn ein Patient die Einrichtung verlässt
     async fillEmptySlot(pflegekraftId) {
-        // Find unassigned patients
+        // Nicht zugewiesene Patienten finden
         const unassignedQuery = `
-      SELECT p.id 
-      FROM patienten p
-      LEFT JOIN patient_zuweisung pa ON p.id = pa.patient_id AND pa.status = 'active'
-      WHERE pa.patient_id IS NULL
-      LIMIT 1
-    `;
+            SELECT p.id
+            FROM patienten p
+                     LEFT JOIN patient_zuweisung pa ON p.id = pa.patient_id AND pa.status = 'active'
+            WHERE pa.patient_id IS NULL
+                LIMIT 1
+        `;
 
         const unassigned = await pool.query(unassignedQuery);
 
@@ -136,9 +136,9 @@ class PatientAssignmentAlgorithm {
             const newPatientId = unassigned.rows[0].id;
 
             const assignQuery = `
-        INSERT INTO patient_zuweisung (mitarbeiter_id, patient_id, status)
-        VALUES ($1, $2, 'active')
-      `;
+                INSERT INTO patient_zuweisung (mitarbeiter_id, patient_id, status)
+                VALUES ($1, $2, 'active')
+            `;
 
             await pool.query(assignQuery, [pflegekraftId, newPatientId]);
             return newPatientId;
@@ -147,16 +147,16 @@ class PatientAssignmentAlgorithm {
         return null;
     }
 
-    // Initial assignment of all patients
+    // Erstmalige Zuweisung aller Patienten
     async performInitialAssignment() {
         try {
-            // Get all unassigned patients
+            // Alle nicht zugewiesenen Patienten abrufen
             const unassignedQuery = `
-        SELECT p.id 
-        FROM patienten p
-        LEFT JOIN patient_zuweisung pa ON p.id = pa.patient_id AND pa.status = 'active'
-        WHERE pa.patient_id IS NULL
-      `;
+                SELECT p.id
+                FROM patienten p
+                         LEFT JOIN patient_zuweisung pa ON p.id = pa.patient_id AND pa.status = 'active'
+                WHERE pa.patient_id IS NULL
+            `;
 
             const unassigned = await pool.query(unassignedQuery);
             const results = [];
@@ -169,23 +169,23 @@ class PatientAssignmentAlgorithm {
             return results;
 
         } catch (error) {
-            console.error('Initial assignment failed:', error);
+            console.error('Erstmalige Zuweisung fehlgeschlagen:', error);
             throw error;
         }
     }
 
-    // Get assignment statistics
+    // Zuweisungsstatistiken abrufen
     async getStatistics() {
         const query = `
-      SELECT 
-        m.benutzername,
-        COUNT(pa.patient_id) as assigned_patients,
-        (24 - COUNT(pa.patient_id)) as available_slots
-      FROM mitarbeiter m
-      LEFT JOIN patient_zuweisung pa ON m.id = pa.mitarbeiter_id AND pa.status = 'active'
-      GROUP BY m.id, m.benutzername
-      ORDER BY assigned_patients DESC
-    `;
+            SELECT
+                m.benutzername,
+                COUNT(pa.patient_id) as assigned_patients,
+                (24 - COUNT(pa.patient_id)) as available_slots
+            FROM mitarbeiter m
+                     LEFT JOIN patient_zuweisung pa ON m.id = pa.mitarbeiter_id AND pa.status = 'active'
+            GROUP BY m.id, m.benutzername
+            ORDER BY assigned_patients DESC
+        `;
 
         const result = await pool.query(query);
         return result.rows;
