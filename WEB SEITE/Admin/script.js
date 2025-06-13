@@ -699,6 +699,461 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Admin Dashboard vollständig initialisiert');
 });
 
+// ======================================
+// PATIENT MANAGEMENT FUNCTIONS (GLOBAL)
+// ======================================
+
+// Global variables for patient management
+let allPatients = [];
+let availablePflegekraefte = [];
+
+// Get adminId from session storage for patient management functions
+function getAdminId() {
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+    return currentUser.id;
+}
+
+// Navigation function for patient management
+window.showPatientManagementSection = function() {
+    console.log('Showing patient management section');
+    hideAllSections();
+    document.getElementById('patientManagementSection').style.display = 'block';
+    loadPatientsManagement();
+};
+
+window.showNewPatientForm = function() {
+    document.getElementById('newPatientForm').style.display = 'block';
+    setupPatientRegistrationForm();
+};
+
+window.hideNewPatientForm = function() {
+    document.getElementById('newPatientForm').style.display = 'none';
+    document.getElementById('patientRegistrationForm').reset();
+    document.getElementById('assignmentPreview').style.display = 'none';
+};
+
+// Setup patient registration form with real-time availability checking
+function setupPatientRegistrationForm() {
+    const form = document.getElementById('patientRegistrationForm');
+    const standortSelect = document.getElementById('patientStandort');
+
+    // Remove existing event listeners
+    const newForm = form.cloneNode(true);
+    form.parentNode.replaceChild(newForm, form);
+
+    // Add form submission handler
+    newForm.addEventListener('submit', handlePatientRegistration);
+
+    // Add standort change handler for availability preview
+    const newStandortSelect = document.getElementById('patientStandort');
+    newStandortSelect.addEventListener('change', function() {
+        if (this.value) {
+            checkPflegekraftAvailability(this.value);
+        } else {
+            document.getElementById('assignmentPreview').style.display = 'none';
+        }
+    });
+
+    console.log('Patient registration form setup complete');
+}
+
+// Check Pflegekraft availability at selected location
+async function checkPflegekraftAvailability(standort) {
+    const previewDiv = document.getElementById('assignmentPreview');
+    const availableDiv = document.getElementById('availablePflegekraft');
+
+    previewDiv.style.display = 'block';
+    availableDiv.innerHTML = '<span class="loading">Prüfe verfügbare Pflegekräfte...</span>';
+    availableDiv.className = 'preview-box';
+
+    try {
+        const response = await fetch(`/api/admin/pflegekraft-availability/${standort}`);
+        const data = await response.json();
+
+        if (data.success) {
+            const available = data.pflegekraefte.filter(pf => pf.current_patients < 24);
+
+            if (available.length > 0) {
+                const bestMatch = available[0]; // Pflegekraft with least patients
+                availableDiv.innerHTML = `
+                    <div class="success">
+                        ✅ <strong>Zuweisung möglich!</strong><br>
+                        <strong>${bestMatch.name}</strong> hat ${bestMatch.current_patients}/24 Patienten<br>
+                        <small>Patient wird automatisch zugewiesen</small>
+                    </div>
+                `;
+                availableDiv.className = 'preview-box success';
+            } else {
+                availableDiv.innerHTML = `
+                    <div class="warning">
+                        ⚠️ <strong>Keine verfügbare Pflegekraft!</strong><br>
+                        Alle Pflegekräfte am Standort ${standort} haben 24 Patienten<br>
+                        <small>Patient wird ohne Zuweisung registriert</small>
+                    </div>
+                `;
+                availableDiv.className = 'preview-box warning';
+            }
+        } else {
+            throw new Error(data.message);
+        }
+    } catch (error) {
+        console.error('Availability check error:', error);
+        availableDiv.innerHTML = `
+            <div class="error">
+                ❌ <strong>Fehler beim Prüfen der Verfügbarkeit</strong><br>
+                <small>${error.message}</small>
+            </div>
+        `;
+        availableDiv.className = 'preview-box error';
+    }
+}
+
+// Handle patient registration form submission
+async function handlePatientRegistration(e) {
+    e.preventDefault();
+
+    const formData = new FormData(e.target);
+    const patientData = Object.fromEntries(formData.entries());
+
+    // Validation
+    if (!patientData.vorname || !patientData.nachname || !patientData.geburtsdatum || !patientData.standort) {
+        showNotification('Bitte füllen Sie alle Pflichtfelder aus', 'error');
+        return;
+    }
+
+    // Generate username automatically
+    const baseUsername = (patientData.vorname + '.' + patientData.nachname).toLowerCase()
+        .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+        .replace(/[^a-z.]/g, '');
+
+    const submitButton = e.target.querySelector('button[type="submit"]');
+    const originalText = submitButton.innerHTML;
+    submitButton.innerHTML = '<span class="loading-spinner"></span>Registriere...';
+    submitButton.disabled = true;
+
+    try {
+        const response = await fetch('/api/admin/patients/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                ...patientData,
+                benutzername: baseUsername,
+                adminId: getAdminId()
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showNotification(`Patient ${patientData.vorname} ${patientData.nachname} erfolgreich registriert! ${result.assignmentMessage || ''}`, 'success');
+            hideNewPatientForm();
+            await loadPatientsManagement(); // Refresh the list
+        } else {
+            throw new Error(result.message || 'Registration failed');
+        }
+
+    } catch (error) {
+        console.error('Patient registration error:', error);
+        showNotification('Fehler bei der Registrierung: ' + error.message, 'error');
+    } finally {
+        submitButton.innerHTML = originalText;
+        submitButton.disabled = false;
+    }
+}
+
+// Load patients management data
+async function loadPatientsManagement() {
+    try {
+        const response = await fetch('/api/admin/patients/detailed');
+        if (!response.ok) throw new Error('Failed to load patients');
+
+        const data = await response.json();
+
+        if (data.success) {
+            allPatients = data.patients;
+            updatePatientsTable(allPatients);
+        } else {
+            throw new Error(data.message);
+        }
+
+    } catch (error) {
+        console.error('Load patients error:', error);
+        showNotification('Fehler beim Laden der Patientenliste', 'error');
+    }
+}
+
+// Update patients table
+function updatePatientsTable(patients) {
+    const tbody = document.querySelector('#patientsManagementTable tbody');
+
+    if (patients.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; color: #666;">
+                    Keine Patienten gefunden
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = patients.map(patient => `
+        <tr>
+            <td>${patient.id}</td>
+            <td><strong>${patient.vorname} ${patient.nachname}</strong></td>
+            <td>${new Date(patient.geburtsdatum).toLocaleDateString('de-DE')}</td>
+            <td>${patient.standort}</td>
+            <td>${patient.zimmer_nummer || 'TBD'}</td>
+            <td>${patient.assigned_pflegekraft || '<span style="color: #e53e3e;">Nicht zugewiesen</span>'}</td>
+            <td>
+                <span class="status-badge ${patient.status}">${patient.status}</span>
+            </td>
+            <td>
+                <button class="patient-action-btn view" onclick="viewPatientDetails(${patient.id})" title="Details ansehen">
+                    👁️
+                </button>
+                <button class="patient-action-btn edit" onclick="editPatient(${patient.id})" title="Bearbeiten">
+                    ✏️
+                </button>
+                ${patient.status === 'active' ? `
+                    <button class="patient-action-btn delete" onclick="deactivatePatient(${patient.id})" title="Deaktivieren">
+                        🚫
+                    </button>
+                ` : ''}
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Filter patients based on search and location
+window.filterPatients = function() {
+    const searchTerm = document.getElementById('patientSearchInput').value.toLowerCase();
+    const locationFilter = document.getElementById('locationFilter').value;
+
+    let filtered = allPatients;
+
+    // Apply search filter
+    if (searchTerm) {
+        filtered = filtered.filter(patient =>
+            patient.vorname.toLowerCase().includes(searchTerm) ||
+            patient.nachname.toLowerCase().includes(searchTerm) ||
+            patient.id.toString().includes(searchTerm)
+        );
+    }
+
+    // Apply location filter
+    if (locationFilter) {
+        filtered = filtered.filter(patient => patient.standort === locationFilter);
+    }
+
+    updatePatientsTable(filtered);
+};
+
+// Patient action functions
+window.viewPatientDetails = function(patientId) {
+    const patient = allPatients.find(p => p.id === patientId);
+    if (!patient) return;
+
+    // Create modal with patient details
+    const modal = document.createElement('div');
+    modal.className = 'patient-details-modal';
+    modal.innerHTML = `
+        <div class="patient-details-modal-content">
+            <div class="patient-details-modal-header">
+                <h2>👤 ${patient.vorname} ${patient.nachname}</h2>
+                <button class="modal-close" onclick="this.closest('.patient-details-modal').remove()">×</button>
+            </div>
+            <div class="patient-details-modal-body">
+                <div class="patient-details-grid">
+                    <div class="detail-section">
+                        <h4>📋 Grunddaten</h4>
+                        <p><strong>ID:</strong> ${patient.id}</p>
+                        <p><strong>Geburtsdatum:</strong> ${new Date(patient.geburtsdatum).toLocaleDateString('de-DE')}</p>
+                        <p><strong>Benutzername:</strong> ${patient.benutzername}</p>
+                        <p><strong>Status:</strong> ${patient.status}</p>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h4>🏠 Aufenthalt</h4>
+                        <p><strong>Standort:</strong> ${patient.standort}</p>
+                        <p><strong>Zimmer:</strong> ${patient.zimmer_nummer || 'Nicht zugewiesen'}</p>
+                        <p><strong>Aufnahme:</strong> ${patient.aufnahmedatum ? new Date(patient.aufnahmedatum).toLocaleDateString('de-DE') : 'Unbekannt'}</p>
+                        <p><strong>Pflegekraft:</strong> ${patient.assigned_pflegekraft || 'Nicht zugewiesen'}</p>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h4>📞 Kontakt</h4>
+                        <p><strong>Telefon:</strong> ${patient.telefon || 'Nicht angegeben'}</p>
+                        <p><strong>Adresse:</strong> ${patient.adresse || 'Nicht angegeben'}</p>
+                        <p><strong>Notfallkontakt:</strong> ${patient.notfallkontakt || 'Nicht angegeben'}</p>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h4>🏥 Medizinisch</h4>
+                        <p><strong>Gesundheitszustand:</strong> ${patient.gesundheitszustand || 'Nicht dokumentiert'}</p>
+                        <p><strong>Medikamente:</strong> ${patient.medikamente || 'Keine angegeben'}</p>
+                        <p><strong>Allergien:</strong> ${patient.allergien || 'Keine bekannt'}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="patient-details-modal-footer">
+                <button class="btn-secondary" onclick="this.closest('.patient-details-modal').remove()">Schließen</button>
+                <button class="btn-primary" onclick="editPatient(${patient.id}); this.closest('.patient-details-modal').remove();">Bearbeiten</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Add styles for the modal
+    if (!document.getElementById('patient-details-modal-styles')) {
+        const style = document.createElement('style');
+        style.id = 'patient-details-modal-styles';
+        style.textContent = `
+            .patient-details-modal {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.8);
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 2rem;
+            }
+            
+            .patient-details-modal-content {
+                background: white;
+                border-radius: 12px;
+                max-width: 800px;
+                max-height: 80vh;
+                overflow-y: auto;
+                width: 100%;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            }
+            
+            .patient-details-modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 1.5rem;
+                border-bottom: 1px solid #eee;
+                background: linear-gradient(135deg, #2d7ff9, #4b86f9);
+                color: white;
+                border-radius: 12px 12px 0 0;
+            }
+            
+            .patient-details-modal-body {
+                padding: 1.5rem;
+            }
+            
+            .patient-details-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 1.5rem;
+            }
+            
+            .detail-section {
+                background: #f8fafc;
+                padding: 1rem;
+                border-radius: 8px;
+                border-left: 4px solid #2d7ff9;
+            }
+            
+            .detail-section h4 {
+                color: #2d3748;
+                margin-bottom: 0.75rem;
+                font-size: 1rem;
+                font-weight: 600;
+            }
+            
+            .detail-section p {
+                margin-bottom: 0.5rem;
+                line-height: 1.4;
+            }
+            
+            .patient-details-modal-footer {
+                padding: 1.5rem;
+                border-top: 1px solid #eee;
+                display: flex;
+                justify-content: flex-end;
+                gap: 1rem;
+            }
+            
+            .status-badge {
+                padding: 0.25rem 0.5rem;
+                border-radius: 4px;
+                font-size: 0.8rem;
+                font-weight: 500;
+            }
+            
+            .status-badge.active {
+                background: #c6f6d5;
+                color: #22543d;
+            }
+            
+            .status-badge.discharged {
+                background: #fed7d7;
+                color: #c53030;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+};
+
+window.editPatient = function(patientId) {
+    showNotification('Patienten-Bearbeitung wird implementiert...', 'info');
+    // TODO: Implement patient editing functionality
+};
+
+window.deactivatePatient = function(patientId) {
+    const patient = allPatients.find(p => p.id === patientId);
+    if (!patient) return;
+
+    if (confirm(`Möchten Sie ${patient.vorname} ${patient.nachname} wirklich deaktivieren?`)) {
+        // TODO: Implement patient deactivation
+        showNotification('Patienten-Deaktivierung wird implementiert...', 'info');
+    }
+};
+
+// Helper function to hide all sections (needs to be global)
+function hideAllSections() {
+    document.getElementById('dashboardSection').style.display = 'none';
+    document.getElementById('transferSection').style.display = 'none';
+    document.getElementById('statisticsSection').style.display = 'none';
+    document.getElementById('patientManagementSection').style.display = 'none';
+}
+
+// Helper function for notifications (needs to be global)
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+
+    const notificationArea = document.getElementById('notificationArea');
+    notificationArea.appendChild(notification);
+
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 5000);
+
+    notification.addEventListener('click', () => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    });
+}
+
+// ======================================
+// CRITICAL HEALTH ALERTS SYSTEM
+// ======================================
+
 // Erweiterte kritische Gesundheitsalarme für Dashboard
 function setupCriticalAlertMonitoring() {
     // Alle 30 Sekunden auf kritische Alarme prüfen
@@ -1305,426 +1760,4 @@ function injectCriticalAlertCSS() {
 document.addEventListener('DOMContentLoaded', () => {
     injectCriticalAlertCSS();
     setupCriticalAlertMonitoring();
-});
-
-// Add these functions to your Admin/script.js file
-
-// Global variables for patient management
-let allPatients = [];
-let availablePflegekraefte = [];
-
-// Navigation function for patient management
-window.showPatientManagementSection = function() {
-    hideAllSections();
-    document.getElementById('patientManagementSection').style.display = 'block';
-    loadPatientsManagement();
-};
-
-window.showNewPatientForm = function() {
-    document.getElementById('newPatientForm').style.display = 'block';
-    setupPatientRegistrationForm();
-};
-
-window.hideNewPatientForm = function() {
-    document.getElementById('newPatientForm').style.display = 'none';
-    document.getElementById('patientRegistrationForm').reset();
-    document.getElementById('assignmentPreview').style.display = 'none';
-};
-
-// Setup patient registration form with real-time availability checking
-function setupPatientRegistrationForm() {
-    const form = document.getElementById('patientRegistrationForm');
-    const standortSelect = document.getElementById('patientStandort');
-
-    // Remove existing event listeners
-    const newForm = form.cloneNode(true);
-    form.parentNode.replaceChild(newForm, form);
-
-    // Add form submission handler
-    newForm.addEventListener('submit', handlePatientRegistration);
-
-    // Add standort change handler for availability preview
-    const newStandortSelect = document.getElementById('patientStandort');
-    newStandortSelect.addEventListener('change', function() {
-        if (this.value) {
-            checkPflegekraftAvailability(this.value);
-        } else {
-            document.getElementById('assignmentPreview').style.display = 'none';
-        }
-    });
-
-    console.log('Patient registration form setup complete');
-}
-
-// Check Pflegekraft availability at selected location
-async function checkPflegekraftAvailability(standort) {
-    const previewDiv = document.getElementById('assignmentPreview');
-    const availableDiv = document.getElementById('availablePflegekraft');
-
-    previewDiv.style.display = 'block';
-    availableDiv.innerHTML = '<span class="loading">Prüfe verfügbare Pflegekräfte...</span>';
-    availableDiv.className = 'preview-box';
-
-    try {
-        const response = await fetch(`/api/admin/pflegekraft-availability/${standort}`);
-        const data = await response.json();
-
-        if (data.success) {
-            const available = data.pflegekraefte.filter(pf => pf.current_patients < 24);
-
-            if (available.length > 0) {
-                const bestMatch = available[0]; // Pflegekraft with least patients
-                availableDiv.innerHTML = `
-                    <div class="success">
-                        ✅ <strong>Zuweisung möglich!</strong><br>
-                        <strong>${bestMatch.name}</strong> hat ${bestMatch.current_patients}/24 Patienten<br>
-                        <small>Patient wird automatisch zugewiesen</small>
-                    </div>
-                `;
-                availableDiv.className = 'preview-box success';
-            } else {
-                availableDiv.innerHTML = `
-                    <div class="warning">
-                        ⚠️ <strong>Keine verfügbare Pflegekraft!</strong><br>
-                        Alle Pflegekräfte am Standort ${standort} haben 24 Patienten<br>
-                        <small>Patient wird ohne Zuweisung registriert</small>
-                    </div>
-                `;
-                availableDiv.className = 'preview-box warning';
-            }
-        } else {
-            throw new Error(data.message);
-        }
-    } catch (error) {
-        console.error('Availability check error:', error);
-        availableDiv.innerHTML = `
-            <div class="error">
-                ❌ <strong>Fehler beim Prüfen der Verfügbarkeit</strong><br>
-                <small>${error.message}</small>
-            </div>
-        `;
-        availableDiv.className = 'preview-box error';
-    }
-}
-
-// Handle patient registration form submission
-async function handlePatientRegistration(e) {
-    e.preventDefault();
-
-    const formData = new FormData(e.target);
-    const patientData = Object.fromEntries(formData.entries());
-
-    // Validation
-    if (!patientData.vorname || !patientData.nachname || !patientData.geburtsdatum || !patientData.standort) {
-        showNotification('Bitte füllen Sie alle Pflichtfelder aus', 'error');
-        return;
-    }
-
-    // Generate username automatically
-    const baseUsername = (patientData.vorname + '.' + patientData.nachname).toLowerCase()
-        .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
-        .replace(/[^a-z.]/g, '');
-
-    const submitButton = e.target.querySelector('button[type="submit"]');
-    const originalText = submitButton.innerHTML;
-    submitButton.innerHTML = '<span class="loading-spinner"></span>Registriere...';
-    submitButton.disabled = true;
-
-    try {
-        const response = await fetch('/api/admin/patients/register', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                ...patientData,
-                benutzername: baseUsername,
-                adminId: adminId // from currentUser
-            })
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            showNotification(`Patient ${patientData.vorname} ${patientData.nachname} erfolgreich registriert! ${result.assignmentMessage || ''}`, 'success');
-            hideNewPatientForm();
-            await loadPatientsManagement(); // Refresh the list
-        } else {
-            throw new Error(result.message || 'Registration failed');
-        }
-
-    } catch (error) {
-        console.error('Patient registration error:', error);
-        showNotification('Fehler bei der Registrierung: ' + error.message, 'error');
-    } finally {
-        submitButton.innerHTML = originalText;
-        submitButton.disabled = false;
-    }
-}
-
-// Load patients management data
-async function loadPatientsManagement() {
-    try {
-        const response = await fetch('/api/admin/patients/detailed');
-        if (!response.ok) throw new Error('Failed to load patients');
-
-        const data = await response.json();
-
-        if (data.success) {
-            allPatients = data.patients;
-            updatePatientsTable(allPatients);
-        } else {
-            throw new Error(data.message);
-        }
-
-    } catch (error) {
-        console.error('Load patients error:', error);
-        showNotification('Fehler beim Laden der Patientenliste', 'error');
-    }
-}
-
-// Update patients table
-function updatePatientsTable(patients) {
-    const tbody = document.querySelector('#patientsManagementTable tbody');
-
-    if (patients.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="8" style="text-align: center; color: #666;">
-                    Keine Patienten gefunden
-                </td>
-            </tr>
-        `;
-        return;
-    }
-
-    tbody.innerHTML = patients.map(patient => `
-        <tr>
-            <td>${patient.id}</td>
-            <td><strong>${patient.vorname} ${patient.nachname}</strong></td>
-            <td>${new Date(patient.geburtsdatum).toLocaleDateString('de-DE')}</td>
-            <td>${patient.standort}</td>
-            <td>${patient.zimmer_nummer || 'TBD'}</td>
-            <td>${patient.assigned_pflegekraft || '<span style="color: #e53e3e;">Nicht zugewiesen</span>'}</td>
-            <td>
-                <span class="status-badge ${patient.status}">${patient.status}</span>
-            </td>
-            <td>
-                <button class="patient-action-btn view" onclick="viewPatientDetails(${patient.id})" title="Details ansehen">
-                    👁️
-                </button>
-                <button class="patient-action-btn edit" onclick="editPatient(${patient.id})" title="Bearbeiten">
-                    ✏️
-                </button>
-                ${patient.status === 'active' ? `
-                    <button class="patient-action-btn delete" onclick="deactivatePatient(${patient.id})" title="Deaktivieren">
-                        🚫
-                    </button>
-                ` : ''}
-            </td>
-        </tr>
-    `).join('');
-}
-
-// Filter patients based on search and location
-window.filterPatients = function() {
-    const searchTerm = document.getElementById('patientSearchInput').value.toLowerCase();
-    const locationFilter = document.getElementById('locationFilter').value;
-
-    let filtered = allPatients;
-
-    // Apply search filter
-    if (searchTerm) {
-        filtered = filtered.filter(patient =>
-            patient.vorname.toLowerCase().includes(searchTerm) ||
-            patient.nachname.toLowerCase().includes(searchTerm) ||
-            patient.id.toString().includes(searchTerm)
-        );
-    }
-
-    // Apply location filter
-    if (locationFilter) {
-        filtered = filtered.filter(patient => patient.standort === locationFilter);
-    }
-
-    updatePatientsTable(filtered);
-};
-
-// Patient action functions
-window.viewPatientDetails = function(patientId) {
-    const patient = allPatients.find(p => p.id === patientId);
-    if (!patient) return;
-
-    // Create modal with patient details
-    const modal = document.createElement('div');
-    modal.className = 'patient-details-modal';
-    modal.innerHTML = `
-        <div class="patient-details-modal-content">
-            <div class="patient-details-modal-header">
-                <h2>👤 ${patient.vorname} ${patient.nachname}</h2>
-                <button class="modal-close" onclick="this.closest('.patient-details-modal').remove()">×</button>
-            </div>
-            <div class="patient-details-modal-body">
-                <div class="patient-details-grid">
-                    <div class="detail-section">
-                        <h4>📋 Grunddaten</h4>
-                        <p><strong>ID:</strong> ${patient.id}</p>
-                        <p><strong>Geburtsdatum:</strong> ${new Date(patient.geburtsdatum).toLocaleDateString('de-DE')}</p>
-                        <p><strong>Benutzername:</strong> ${patient.benutzername}</p>
-                        <p><strong>Status:</strong> ${patient.status}</p>
-                    </div>
-                    
-                    <div class="detail-section">
-                        <h4>🏠 Aufenthalt</h4>
-                        <p><strong>Standort:</strong> ${patient.standort}</p>
-                        <p><strong>Zimmer:</strong> ${patient.zimmer_nummer || 'Nicht zugewiesen'}</p>
-                        <p><strong>Aufnahme:</strong> ${patient.aufnahmedatum ? new Date(patient.aufnahmedatum).toLocaleDateString('de-DE') : 'Unbekannt'}</p>
-                        <p><strong>Pflegekraft:</strong> ${patient.assigned_pflegekraft || 'Nicht zugewiesen'}</p>
-                    </div>
-                    
-                    <div class="detail-section">
-                        <h4>📞 Kontakt</h4>
-                        <p><strong>Telefon:</strong> ${patient.telefon || 'Nicht angegeben'}</p>
-                        <p><strong>Adresse:</strong> ${patient.adresse || 'Nicht angegeben'}</p>
-                        <p><strong>Notfallkontakt:</strong> ${patient.notfallkontakt || 'Nicht angegeben'}</p>
-                    </div>
-                    
-                    <div class="detail-section">
-                        <h4>🏥 Medizinisch</h4>
-                        <p><strong>Gesundheitszustand:</strong> ${patient.gesundheitszustand || 'Nicht dokumentiert'}</p>
-                        <p><strong>Medikamente:</strong> ${patient.medikamente || 'Keine angegeben'}</p>
-                        <p><strong>Allergien:</strong> ${patient.allergien || 'Keine bekannt'}</p>
-                    </div>
-                </div>
-            </div>
-            <div class="patient-details-modal-footer">
-                <button class="btn-secondary" onclick="this.closest('.patient-details-modal').remove()">Schließen</button>
-                <button class="btn-primary" onclick="editPatient(${patient.id}); this.closest('.patient-details-modal').remove();">Bearbeiten</button>
-            </div>
-        </div>
-    `;
-
-    document.body.appendChild(modal);
-
-    // Add styles for the modal
-    if (!document.getElementById('patient-details-modal-styles')) {
-        const style = document.createElement('style');
-        style.id = 'patient-details-modal-styles';
-        style.textContent = `
-            .patient-details-modal {
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0, 0, 0, 0.8);
-                z-index: 10000;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                padding: 2rem;
-            }
-            
-            .patient-details-modal-content {
-                background: white;
-                border-radius: 12px;
-                max-width: 800px;
-                max-height: 80vh;
-                overflow-y: auto;
-                width: 100%;
-                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            }
-            
-            .patient-details-modal-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 1.5rem;
-                border-bottom: 1px solid #eee;
-                background: linear-gradient(135deg, #2d7ff9, #4b86f9);
-                color: white;
-                border-radius: 12px 12px 0 0;
-            }
-            
-            .patient-details-modal-body {
-                padding: 1.5rem;
-            }
-            
-            .patient-details-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                gap: 1.5rem;
-            }
-            
-            .detail-section {
-                background: #f8fafc;
-                padding: 1rem;
-                border-radius: 8px;
-                border-left: 4px solid #2d7ff9;
-            }
-            
-            .detail-section h4 {
-                color: #2d3748;
-                margin-bottom: 0.75rem;
-                font-size: 1rem;
-                font-weight: 600;
-            }
-            
-            .detail-section p {
-                margin-bottom: 0.5rem;
-                line-height: 1.4;
-            }
-            
-            .patient-details-modal-footer {
-                padding: 1.5rem;
-                border-top: 1px solid #eee;
-                display: flex;
-                justify-content: flex-end;
-                gap: 1rem;
-            }
-            
-            .status-badge {
-                padding: 0.25rem 0.5rem;
-                border-radius: 4px;
-                font-size: 0.8rem;
-                font-weight: 500;
-            }
-            
-            .status-badge.active {
-                background: #c6f6d5;
-                color: #22543d;
-            }
-            
-            .status-badge.discharged {
-                background: #fed7d7;
-                color: #c53030;
-            }
-        `;
-        document.head.appendChild(style);
-    }
-};
-
-window.editPatient = function(patientId) {
-    showNotification('Patienten-Bearbeitung wird implementiert...', 'info');
-    // TODO: Implement patient editing functionality
-};
-
-window.deactivatePatient = function(patientId) {
-    const patient = allPatients.find(p => p.id === patientId);
-    if (!patient) return;
-
-    if (confirm(`Möchten Sie ${patient.vorname} ${patient.nachname} wirklich deaktivieren?`)) {
-        // TODO: Implement patient deactivation
-        showNotification('Patienten-Deaktivierung wird implementiert...', 'info');
-    }
-};
-
-// Make sure to call this when the admin dashboard loads
-document.addEventListener('DOMContentLoaded', function() {
-    // Existing initialization code...
-
-    // Add patient management initialization if needed
-    if (window.location.hash === '#patients') {
-        showPatientManagementSection();
-    }
 });

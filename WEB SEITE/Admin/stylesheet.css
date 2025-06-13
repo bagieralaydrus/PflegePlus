@@ -529,35 +529,7 @@ table tr:hover {
     }
 }
 
-/* ====== Responsive Design ====== */
-@media (max-width: 768px) {
-    .stats-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .stats-row {
-        grid-template-columns: 1fr;
-    }
-
-    .form-row {
-        grid-template-columns: 1fr;
-    }
-
-    .section-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 1rem;
-    }
-
-    .form-actions {
-        flex-direction: column;
-    }
-
-    .main {
-        padding: 1rem 0.5rem;
-    }
-}
-
+/* ====== Patient Management Section ====== */
 .patient-management-section .form-section {
     background: #f8fafc;
     border: 1px solid #e2e8f0;
@@ -669,7 +641,69 @@ table tr:hover {
     opacity: 0.9;
 }
 
+/* ====== Status Badges ====== */
+.status-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.status-badge.active {
+    background: #c6f6d5;
+    color: #22543d;
+}
+
+.status-badge.discharged {
+    background: #fed7d7;
+    color: #c53030;
+}
+
+/* ====== Loading Spinner ====== */
+.loading-spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #2d7ff9;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 0.5rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ====== Responsive Design ====== */
 @media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-row {
+        grid-template-columns: 1fr;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .main {
+        padding: 1rem 0.5rem;
+    }
+
     .patients-controls {
         flex-direction: column;
         align-items: stretch;
