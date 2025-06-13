@@ -19,6 +19,7 @@
             <a href="index.html">Dashboard</a>
             <a href="#" onclick="showTransferSection()">Transfers</a>
             <a href="#" onclick="showStatisticsSection()">Statistiken</a>
+            <a href="#" onclick="showPatientManagementSection()">Patienten verwalten</a>
             <a href="#" onclick="logout()">Abmelden</a>
         </nav>
     </div>
@@ -315,6 +316,147 @@
                         <span>Lade Auslastung...</span>
                     </div>
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="patientManagementSection" class="patient-management-section" style="display: none;">
+        <div class="section-header">
+            <h2>👥 Patienten Verwaltung</h2>
+            <button class="btn-primary" onclick="showNewPatientForm()">
+                ➕ Neuen Patienten hinzufügen
+            </button>
+        </div>
+
+        <!-- Patient Registration Form -->
+        <div id="newPatientForm" class="modern-card" style="display: none;">
+            <h3>Neuen Patienten registrieren</h3>
+            <form id="patientRegistrationForm" class="modern-form">
+                <!-- Essential Information (Required) -->
+                <div class="form-section">
+                    <h4>📋 Grundlegende Informationen</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="patientVorname">Vorname *</label>
+                            <input type="text" id="patientVorname" name="vorname" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="patientNachname">Nachname *</label>
+                            <input type="text" id="patientNachname" name="nachname" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="patientGeburtsdatum">Geburtsdatum *</label>
+                            <input type="date" id="patientGeburtsdatum" name="geburtsdatum" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="patientStandort">Standort *</label>
+                            <select id="patientStandort" name="standort" required>
+                                <option value="">-- Standort wählen --</option>
+                                <option value="Krefeld">Krefeld</option>
+                                <option value="Mönchengladbach">Mönchengladbach</option>
+                                <option value="Zuhause">Zuhause</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Optional Detailed Information -->
+                <div class="form-section">
+                    <h4>🏠 Kontaktinformationen (Optional)</h4>
+                    <div class="form-group">
+                        <label for="patientAdresse">Adresse</label>
+                        <textarea id="patientAdresse" name="adresse" placeholder="Straße, PLZ, Stadt"></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="patientTelefon">Telefon</label>
+                            <input type="tel" id="patientTelefon" name="telefon" placeholder="+49 xxx xxxx">
+                        </div>
+                        <div class="form-group">
+                            <label for="patientNotfallkontakt">Notfallkontakt</label>
+                            <input type="text" id="patientNotfallkontakt" name="notfallkontakt" placeholder="Name und Telefon">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Medical Information -->
+                <div class="form-section">
+                    <h4>🏥 Medizinische Informationen (Optional)</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="patientGesundheitszustand">Gesundheitszustand</label>
+                            <textarea id="patientGesundheitszustand" name="gesundheitszustand" placeholder="Aktuelle Diagnosen, Zustand..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="patientAllergien">Allergien</label>
+                            <textarea id="patientAllergien" name="allergien" placeholder="Bekannte Allergien..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="patientMedikamente">Aktuelle Medikamente</label>
+                        <textarea id="patientMedikamente" name="medikamente" placeholder="Liste der aktuellen Medikamente..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Assignment Preview -->
+                <div class="form-section" id="assignmentPreview" style="display: none;">
+                    <h4>👨‍⚕️ Zuweisungsvorschau</h4>
+                    <div class="assignment-info">
+                        <div id="availablePflegekraft" class="preview-box">
+                            <span class="loading">Prüfe verfügbare Pflegekräfte...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="hideNewPatientForm()">Abbrechen</button>
+                    <button type="submit" class="btn-primary">Patient registrieren</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Existing Patients List -->
+        <div class="modern-card">
+            <h3>📋 Registrierte Patienten</h3>
+            <div class="patients-controls">
+                <div class="search-controls">
+                    <input type="text" id="patientSearchInput" placeholder="Patienten suchen..." onkeyup="filterPatients()">
+                    <select id="locationFilter" onchange="filterPatients()">
+                        <option value="">Alle Standorte</option>
+                        <option value="Krefeld">Krefeld</option>
+                        <option value="Mönchengladbach">Mönchengladbach</option>
+                        <option value="Zuhause">Zuhause</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-wrapper">
+                <table id="patientsManagementTable">
+                    <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Geburtsdatum</th>
+                        <th>Standort</th>
+                        <th>Zimmer</th>
+                        <th>Pflegekraft</th>
+                        <th>Status</th>
+                        <th>Aktionen</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td colspan="8" style="text-align: center; color: #666;">
+                            Lade Patientenliste...
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </section>

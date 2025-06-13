@@ -557,3 +557,125 @@ table tr:hover {
         padding: 1rem 0.5rem;
     }
 }
+
+.patient-management-section .form-section {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.patient-management-section .form-section h4 {
+    color: #2d3748;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 0.5rem;
+}
+
+.patients-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    gap: 1rem;
+}
+
+.search-controls {
+    display: flex;
+    gap: 1rem;
+    flex: 1;
+}
+
+.search-controls input,
+.search-controls select {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.search-controls input {
+    flex: 1;
+    min-width: 200px;
+}
+
+.assignment-info {
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.preview-box {
+    padding: 1rem;
+    border: 2px dashed #e2e8f0;
+    border-radius: 8px;
+    text-align: center;
+    background: #f7fafc;
+}
+
+.preview-box.success {
+    border-color: #68d391;
+    background: #f0fff4;
+    color: #22543d;
+}
+
+.preview-box.warning {
+    border-color: #f6ad55;
+    background: #fffbeb;
+    color: #c05621;
+}
+
+.preview-box.error {
+    border-color: #fc8181;
+    background: #fff5f5;
+    color: #c53030;
+}
+
+.loading {
+    color: #666;
+    font-style: italic;
+}
+
+.patient-action-btn {
+    padding: 0.25rem 0.5rem;
+    margin: 0 0.25rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+}
+
+.patient-action-btn.view {
+    background: #3182ce;
+    color: white;
+}
+
+.patient-action-btn.edit {
+    background: #f6ad55;
+    color: white;
+}
+
+.patient-action-btn.delete {
+    background: #e53e3e;
+    color: white;
+}
+
+.patient-action-btn:hover {
+    transform: translateY(-1px);
+    opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+    .patients-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-controls {
+        flex-direction: column;
+    }
+}
