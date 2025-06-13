@@ -11,38 +11,33 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static('WEB SEITE/LOGIN')); // Serve your static files
-app.use('/pflegekraft', express.static('WEB SEITE/Pflegekraft')); // Serve Pflegekraft files
+app.use(express.static('WEB SEITE/LOGIN'));
+app.use('/pflegekraft', express.static('WEB SEITE/Pflegekraft'));
 
-
-// Enhanced PostgreSQL connection with proper UTF-8 handling
+// PostgreSQL Verbindung mit UTF-8 Konfiguration
 const pool = new Pool({
     user: 'postgres',
     host: 'localhost',
     database: 'pflegeplus',
     password: 'bagier002',
     port: 5432,
-    // Enhanced UTF-8 configuration
     client_encoding: 'UTF8',
     application_name: 'pflegevision-app',
-    // Additional connection options for UTF-8
     connectionString: `postgresql://postgres:bagier002@localhost:5432/pflegeplus?client_encoding=UTF8`,
     ssl: false
 });
 
-// Enhanced connection handling with UTF-8 setup
+// Verbindungseinstellungen für jede neue Datenbankverbindung
 pool.on('connect', (client) => {
-    // Set UTF-8 encoding for each connection
     client.query('SET client_encoding TO UTF8');
     client.query('SET timezone TO \'Europe/Berlin\'');
-    //console.log('Database connection established with UTF-8 encoding');
 });
 
 pool.on('error', (err) => {
     console.error('Database pool error:', err);
 });
 
-// Test database connection
+// Datenbankverbindung testen
 pool.connect((err, client, release) => {
     if (err) {
         console.error('Error connecting to PostgreSQL:', err);
@@ -52,8 +47,7 @@ pool.connect((err, client, release) => {
     }
 });
 
-// Login endpoint
-// Login endpoint - FIXED VERSION
+// Login-Endpunkt für Mitarbeiter und Patienten
 app.post('/api/login', async (req, res) => {
     const { username, birthdate } = req.body;
 
@@ -65,7 +59,7 @@ app.post('/api/login', async (req, res) => {
     }
 
     try {
-        // Check in Mitarbeiter table first
+        // Zuerst in Mitarbeiter-Tabelle suchen
         const mitarbeiterQuery = `
             SELECT id, benutzername, rolle, 'mitarbeiter' as user_type
             FROM mitarbeiter
@@ -82,12 +76,12 @@ app.post('/api/login', async (req, res) => {
                     id: mitarbeiterResult.rows[0].id,
                     username: mitarbeiterResult.rows[0].benutzername,
                     type: 'mitarbeiter',
-                    role: mitarbeiterResult.rows[0].rolle || 'pflegekraft'  // Default to pflegekraft if rolle is null
+                    role: mitarbeiterResult.rows[0].rolle || 'pflegekraft'
                 }
             });
         }
 
-        // Check in Patienten table if not found in Mitarbeiter
+        // Falls nicht in Mitarbeiter gefunden, in Patienten-Tabelle suchen
         const patientenQuery = `
             SELECT id, benutzername, 'patient' as user_type
             FROM patienten
@@ -108,7 +102,6 @@ app.post('/api/login', async (req, res) => {
             });
         }
 
-        // No user found
         return res.status(401).json({
             success: false,
             message: 'Ungültige Anmeldedaten'
@@ -123,12 +116,11 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// Serve the main HTML file
+// HTML-Seiten bereitstellen
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'WEB SEITE', 'LOGIN', 'index.html'));
 });
 
-// Add this new route for Pflegekraft dashboard
 app.get('/pflegekraft', (req, res) => {
     res.sendFile(path.join(__dirname, 'WEB SEITE', 'Pflegekraft', 'index.html'));
 });
@@ -137,24 +129,24 @@ app.get('/patient', (req, res) => {
     res.sendFile(path.join(__dirname, 'WEB SEITE', 'Patient', 'dashboard_patient.html'));
 });
 
-// Add this line to serve all Patient folder files
 app.use('/patient', express.static('WEB SEITE/Patient'));
+
+// Zufällige Patientenzuweisung für Demo-Zwecke
 app.post('/api/assign-random', async (req, res) => {
     try {
         console.log('Starte Random-Assign-Algorithmus...');
 
-        // Alte Einträge löschen (nur für Tests, vorsichtig im echten Einsatz!)
         await pool.query('DELETE FROM patient_zuweisung');
         console.log('Alte Zuweisungen gelöscht.');
 
-        // Alle Mitarbeiter holen
+        // Alle verfügbaren Mitarbeiter laden
         const mitarbeiterList = (await pool.query('SELECT id FROM mitarbeiter')).rows.map(row => ({
             id: row.id,
             assignedCount: 0
         }));
         console.log(`Gefundene Mitarbeiter: ${mitarbeiterList.length}`);
 
-        // Alle Patienten random holen
+        // Alle Patienten in zufälliger Reihenfolge laden
         const patienten = (await pool.query('SELECT id FROM patienten ORDER BY RANDOM()')).rows;
         console.log(`Gefundene Patienten: ${patienten.length}`);
 
@@ -180,11 +172,11 @@ app.post('/api/assign-random', async (req, res) => {
                             'INSERT INTO patient_zuweisung (mitarbeiter_id, patient_id) VALUES ($1, $2)',
                             [currentMitarbeiter.id, patient.id]
                         );
-                        console.log(`✅ Patient ${patient.id} zu Mitarbeiter ${currentMitarbeiter.id} zugewiesen.`);
+                        console.log(`Patient ${patient.id} zu Mitarbeiter ${currentMitarbeiter.id} zugewiesen.`);
                         currentMitarbeiter.assignedCount++;
                         assigned = true;
                     } catch (insertError) {
-                        console.error(`❌ Insert-Fehler bei Patient ${patient.id}:`, insertError.detail || insertError.message);
+                        console.error(`Insert-Fehler bei Patient ${patient.id}:`, insertError.detail || insertError.message);
                     }
                 }
 
@@ -193,19 +185,17 @@ app.post('/api/assign-random', async (req, res) => {
             }
 
             if (!assigned) {
-                console.warn(`⚠ Kein freier Mitarbeiter für Patient ${patient.id} gefunden.`);
+                console.warn(`Kein freier Mitarbeiter für Patient ${patient.id} gefunden.`);
             }
         }
 
         res.json({ success: true, message: 'Random-Patienten-Zuweisung abgeschlossen!' });
     } catch (error) {
-        console.error('💥 Fehler im Zuweisungsprozess:', error);
+        console.error('Fehler im Zuweisungsprozess:', error);
         res.status(500).json({ success: false, message: 'Fehler bei der Random-Patienten-Zuweisung' });
     }
 });
 
-
-// Start server
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
@@ -218,13 +208,12 @@ process.on('SIGINT', () => {
     });
 });
 
-// Add this line to see what files Express is trying to serve
 app.use('/pflegekraft', (req, res, next) => {
     console.log('Trying to serve:', req.url);
     next();
 }, express.static('WEB SEITE/Pflegekraft'));
 
-// Get assignment dashboard
+// Zuweisungsstatistiken abrufen
 app.get('/api/assignments', async (req, res) => {
     try {
         const stats = await algorithm.getStatistics();
@@ -234,21 +223,21 @@ app.get('/api/assignments', async (req, res) => {
     }
 });
 
-// Assign a patient
+// Patient zuweisen
 app.post('/api/assign-patient', async (req, res) => {
     const { patientId } = req.body;
     const result = await algorithm.assignPatient(patientId);
     res.json(result);
 });
 
-// Transfer a patient
+// Patient transferieren
 app.post('/api/transfer-patient', async (req, res) => {
     const { patientId, reason } = req.body;
     const result = await algorithm.transferPatient(patientId, reason);
     res.json(result);
 });
 
-// Update assignment status (mark as completed)
+// Aufgabenstatus aktualisieren
 app.put('/api/assignments/:assignmentId/status', async (req, res) => {
     const { assignmentId } = req.params;
     const { status } = req.body;
@@ -283,7 +272,7 @@ app.put('/api/assignments/:assignmentId/status', async (req, res) => {
     }
 });
 
-// Delete assignment
+// Aufgabe löschen
 app.delete('/api/assignments/:assignmentId', async (req, res) => {
     const { assignmentId } = req.params;
 
@@ -316,19 +305,12 @@ app.delete('/api/assignments/:assignmentId', async (req, res) => {
     }
 });
 
-
-// Add these new endpoints to your existing server.js file
-
-// Dashboard endpoint - gets data for logged-in Mitarbeiter
-// Add this updated section to your server.js file
-
-// Dashboard endpoint - gets data for logged-in Mitarbeiter
-// Updated dashboard endpoint to include actual assignments from the assignments table
+// Dashboard-Daten für angemeldeten Mitarbeiter
 app.get('/api/dashboard/:mitarbeiterId', async (req, res) => {
     const { mitarbeiterId } = req.params;
 
     try {
-        // Get Mitarbeiter info
+        // Mitarbeiter-Informationen abrufen
         const mitarbeiterQuery = `
             SELECT benutzername, vorname, nachname
             FROM mitarbeiter
@@ -345,7 +327,7 @@ app.get('/api/dashboard/:mitarbeiterId', async (req, res) => {
 
         const mitarbeiter = mitarbeiterResult.rows[0];
 
-        // Get assigned patients count
+        // Anzahl zugewiesener Patienten
         const patientsCountQuery = `
             SELECT COUNT(*) as patient_count
             FROM patient_zuweisung mp
@@ -354,7 +336,7 @@ app.get('/api/dashboard/:mitarbeiterId', async (req, res) => {
         const patientsCountResult = await pool.query(patientsCountQuery, [mitarbeiterId]);
         const patientCount = patientsCountResult.rows[0].patient_count;
 
-        // Get today's assignments from the assignments table
+        // Heutige Aufgaben aus der assignments-Tabelle
         const todaysAssignmentsQuery = `
             SELECT
                 a.id as assignment_id,
@@ -370,7 +352,7 @@ app.get('/api/dashboard/:mitarbeiterId', async (req, res) => {
         `;
         const assignmentsResult = await pool.query(todaysAssignmentsQuery, [mitarbeiterId]);
 
-        // Count completed assignments for today
+        // Anzahl abgeschlossener Aufgaben heute
         const completedCountQuery = `
             SELECT COUNT(*) as completed_count
             FROM assignments
@@ -404,14 +386,12 @@ app.get('/api/dashboard/:mitarbeiterId', async (req, res) => {
     }
 });
 
-// Updated assignments endpoint to work with your existing database structure
-// Replace the existing /api/assignments POST endpoint in your server.js with this fixed version:
-
+// Neue Aufgabe erstellen
 app.post('/api/assignments', async (req, res) => {
     const { mitarbeiterId, patientId, aufgabe, zeit, status } = req.body;
 
     try {
-        // Create assignments table if it doesn't exist
+        // Assignments-Tabelle erstellen falls sie nicht existiert
         const createTableQuery = `
             CREATE TABLE IF NOT EXISTS assignments (
                                                        id SERIAL PRIMARY KEY,
@@ -426,7 +406,7 @@ app.post('/api/assignments', async (req, res) => {
         `;
         await pool.query(createTableQuery);
 
-        // Insert the new assignment
+        // Neue Aufgabe einfügen
         const insertQuery = `
             INSERT INTO assignments (mitarbeiter_id, patient_id, aufgabe, zeit, status, created_at)
             VALUES ($1, $2, $3, $4, $5, NOW())
@@ -434,10 +414,6 @@ app.post('/api/assignments', async (req, res) => {
         `;
 
         const result = await pool.query(insertQuery, [mitarbeiterId, patientId, aufgabe, zeit, status]);
-
-        // REMOVED THE PROBLEMATIC CODE - No longer trying to update patient_zuweisung table
-        // The patient_zuweisung table is only for permanent patient-to-pflegekraft assignments
-        // Daily assignments are handled separately in the assignments table
 
         res.json({
             success: true,
@@ -454,10 +430,9 @@ app.post('/api/assignments', async (req, res) => {
     }
 });
 
-// Get patients list for assignment form
+// Alle aktiven Patienten für Zuweisungsformular
 app.get('/api/patients', async (req, res) => {
     try {
-        // Force UTF-8 encoding for this query
         await pool.query('SET client_encoding TO UTF8');
 
         const query = `
@@ -474,7 +449,6 @@ app.get('/api/patients', async (req, res) => {
 
         const result = await pool.query(query);
 
-        // Ensure proper UTF-8 encoding in response
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.json(result.rows);
 
@@ -486,12 +460,13 @@ app.get('/api/patients', async (req, res) => {
         });
     }
 });
+
+// UTF-8 Encoding-Probleme reparieren
 app.post('/api/admin/fix-encoding', async (req, res) => {
     try {
-        // Set UTF-8 encoding
         await pool.query('SET client_encoding TO UTF8');
 
-        // Fix common German character encoding issues
+        // Häufige deutsche Zeichen-Encoding-Probleme beheben
         const fixes = [
             { from: 'Ã–', to: 'Ö' },
             { from: 'Ã¼', to: 'ü' },
@@ -504,7 +479,7 @@ app.post('/api/admin/fix-encoding', async (req, res) => {
         let totalFixed = 0;
 
         for (const fix of fixes) {
-            // Fix patienten table
+            // Patienten-Tabelle reparieren
             const patientResult = await pool.query(`
                 UPDATE patienten 
                 SET 
@@ -513,7 +488,7 @@ app.post('/api/admin/fix-encoding', async (req, res) => {
                 WHERE vorname LIKE '%' || $1 || '%' OR nachname LIKE '%' || $1 || '%'
             `, [fix.from, fix.to]);
 
-            // Fix mitarbeiter table
+            // Mitarbeiter-Tabelle reparieren
             const mitarbeiterResult = await pool.query(`
                 UPDATE mitarbeiter 
                 SET 
@@ -543,6 +518,7 @@ app.post('/api/admin/fix-encoding', async (req, res) => {
     }
 });
 
+// Patientensuche mit Teilstring-Matching
 app.get('/api/patients/search', async (req, res) => {
     const { q } = req.query;
 
@@ -551,7 +527,6 @@ app.get('/api/patients/search', async (req, res) => {
     }
 
     try {
-        // Ensure UTF-8 encoding
         await pool.query('SET client_encoding TO UTF8');
 
         const searchQuery = `
@@ -587,9 +562,7 @@ app.get('/api/patients/search', async (req, res) => {
     }
 });
 
-// Add this new endpoint to your server.js file (after the existing /api/patients endpoint)
-
-// Get ASSIGNED patients list for a specific Mitarbeiter
+// Zugewiesene Patienten für spezifischen Mitarbeiter
 app.get('/api/patients/assigned/:mitarbeiterId', async (req, res) => {
     const { mitarbeiterId } = req.params;
 
@@ -616,14 +589,12 @@ app.get('/api/patients/assigned/:mitarbeiterId', async (req, res) => {
     }
 });
 
-// ========== PATIENT TRANSFER REQUEST ENDPOINTS - FIXED ==========
-
-// Enhanced patient dashboard endpoint to include current location
+// Patienten-Dashboard mit aktueller Position
 app.get('/api/patient/dashboard/:patientId', async (req, res) => {
     const { patientId } = req.params;
 
     try {
-        // Get patient info including current location
+        // Patienteninformationen einschließlich aktueller Standort
         const patientQuery = `
             SELECT id, benutzername, vorname, nachname, standort
             FROM patienten
@@ -640,7 +611,7 @@ app.get('/api/patient/dashboard/:patientId', async (req, res) => {
 
         const patient = patientResult.rows[0];
 
-        // Get assigned Pflegekraft info
+        // Zugewiesene Pflegekraft ermitteln
         const pflegekraftQuery = `
             SELECT m.vorname, m.nachname, m.benutzername
             FROM patient_zuweisung pz
@@ -655,7 +626,7 @@ app.get('/api/patient/dashboard/:patientId', async (req, res) => {
             assignedPflegekraft = pf.vorname ? `${pf.vorname} ${pf.nachname}` : pf.benutzername;
         }
 
-        // Get today's assignments for this patient
+        // Heutige Aufgaben für diesen Patienten
         const todaysAssignmentsQuery = `
             SELECT
                 a.id,
@@ -693,22 +664,21 @@ app.get('/api/patient/dashboard/:patientId', async (req, res) => {
     }
 });
 
-// Create a new transfer request - FIXED
-// Create a new transfer request - FIXED VALIDATION
+// Neue Transfer-Anfrage erstellen
 app.post('/api/patient/transfer-requests', async (req, res) => {
     const {
         patientId,
         currentStandort,
         requestedStandort,
         reason,
-        prioritaet, // Note: using German spelling to match database
+        prioritaet,
         requesterType,
         requesterId,
         requesterName
     } = req.body;
 
     try {
-        // Enhanced validation with better error messages
+        // Validierung der Pflichtfelder
         const missingFields = [];
 
         if (!patientId) missingFields.push('Patient ID');
@@ -723,7 +693,7 @@ app.post('/api/patient/transfer-requests', async (req, res) => {
             });
         }
 
-        // Check if patient exists
+        // Prüfen ob Patient existiert
         const patientCheck = await pool.query(
             'SELECT standort, vorname, nachname FROM patienten WHERE id = $1',
             [patientId]
@@ -738,7 +708,7 @@ app.post('/api/patient/transfer-requests', async (req, res) => {
 
         const actualCurrentStandort = patientCheck.rows[0].standort;
 
-        // Check if requested location is different from current
+        // Prüfen ob gewünschter Standort unterschiedlich ist
         if (actualCurrentStandort === requestedStandort) {
             return res.status(400).json({
                 success: false,
@@ -746,7 +716,7 @@ app.post('/api/patient/transfer-requests', async (req, res) => {
             });
         }
 
-        // Check for existing pending requests
+        // Prüfen auf bereits existierende ausstehende Anfragen
         const existingRequestCheck = await pool.query(
             `SELECT id FROM transfer_requests 
              WHERE patient_id = $1 AND status = 'pending'`,
@@ -760,7 +730,7 @@ app.post('/api/patient/transfer-requests', async (req, res) => {
             });
         }
 
-        // Create the transfer request using correct German column names
+        // Transfer-Anfrage erstellen
         const insertQuery = `
             INSERT INTO transfer_requests (
                 patient_id,
@@ -804,7 +774,7 @@ app.post('/api/patient/transfer-requests', async (req, res) => {
     }
 });
 
-// Get transfer requests for a specific patient - FIXED
+// Transfer-Anfragen für spezifischen Patienten abrufen
 app.get('/api/patient/transfer-requests/:patientId', async (req, res) => {
     const { patientId } = req.params;
 
@@ -835,13 +805,13 @@ app.get('/api/patient/transfer-requests/:patientId', async (req, res) => {
     }
 });
 
-// Cancel a transfer request - FIXED
+// Transfer-Anfrage stornieren
 app.delete('/api/patient/transfer-requests/:requestId', async (req, res) => {
     const { requestId } = req.params;
     const { patientId } = req.body;
 
     try {
-        // Check if request exists and belongs to patient
+        // Prüfen ob Anfrage existiert und zu Patient gehört
         const requestCheck = await pool.query(
             `SELECT status FROM transfer_requests 
              WHERE id = $1 AND patient_id = $2`,
@@ -862,7 +832,7 @@ app.delete('/api/patient/transfer-requests/:requestId', async (req, res) => {
             });
         }
 
-        // Update status to cancelled using correct German column names
+        // Status auf storniert setzen
         const updateQuery = `
             UPDATE transfer_requests
             SET status = 'cancelled', bearbeitet_am = NOW()
@@ -887,9 +857,7 @@ app.delete('/api/patient/transfer-requests/:requestId', async (req, res) => {
     }
 });
 
-// ========== ADMIN ENDPOINTS FOR TRANSFER REQUESTS - FIXED ==========
-
-// Get all pending transfer requests for admin - FIXED
+// Alle ausstehenden Transfer-Anfragen für Admin
 app.get('/api/admin/transfers/requests', async (req, res) => {
     try {
         const requestsQuery = `
@@ -926,14 +894,13 @@ app.get('/api/admin/transfers/requests', async (req, res) => {
     }
 });
 
-
-// Reject a transfer request - FIXED
+// Transfer-Anfrage ablehnen
 app.post('/api/admin/transfers/requests/:requestId/reject', async (req, res) => {
     const { requestId } = req.params;
     const { adminId, rejectionReason } = req.body;
 
     try {
-        // Get request details
+        // Anfrage-Details abrufen
         const requestQuery = `
             SELECT * FROM transfer_requests 
             WHERE id = $1 AND status = 'pending'
@@ -949,7 +916,7 @@ app.post('/api/admin/transfers/requests/:requestId/reject', async (req, res) => 
 
         const request = requestResult.rows[0];
 
-        // Update request status using correct German column names
+        // Anfrage-Status aktualisieren
         const updateRequestQuery = `
             UPDATE transfer_requests
             SET
@@ -966,7 +933,7 @@ app.post('/api/admin/transfers/requests/:requestId/reject', async (req, res) => 
             requestId
         ]);
 
-        // Create notification for patient/requester
+        // Benachrichtigung für Patient erstellen
         const patientNotificationQuery = `
             INSERT INTO benachrichtigungen (
                 patient_id,
@@ -996,7 +963,7 @@ app.post('/api/admin/transfers/requests/:requestId/reject', async (req, res) => 
     }
 });
 
-// Get transfer request statistics for admin dashboard - FIXED
+// Transfer-Statistiken für Admin-Dashboard
 app.get('/api/admin/transfers/statistics', async (req, res) => {
     try {
         const statsQuery = `
@@ -1026,10 +993,10 @@ app.get('/api/admin/transfers/statistics', async (req, res) => {
     }
 });
 
-// Get patient's assignment history (optional - for viewing past assignments)
+// Aufgaben-Historie für Patienten
 app.get('/api/patient/assignments/history/:patientId', async (req, res) => {
     const { patientId } = req.params;
-    const { days = 7 } = req.query; // Default to last 7 days
+    const { days = 7 } = req.query;
 
     try {
         const historyQuery = `
@@ -1067,23 +1034,23 @@ app.get('/api/patient/assignments/history/:patientId', async (req, res) => {
     }
 });
 
-// Update the existing patient dashboard route to serve the HTML
+// Patient-Dashboard Route
 app.get('/patient/', (req, res) => {
     res.sendFile(path.join(__dirname, 'WEB SEITE', 'Patient', 'dashboard_patient.html'));
 });
 
-// Add admin static file serving
+// Admin statische Dateien bereitstellen
 app.use('/admin', express.static('WEB SEITE/Admin'));
 
-// Admin dashboard route
+// Admin-Dashboard Route
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'WEB SEITE', 'Admin', 'index.html'));
 });
 
-// Admin dashboard API endpoint - FIXED
+// Admin-Dashboard API - Standort- und Arbeitsbelastungsstatistiken
 app.get('/api/admin/dashboard', async (req, res) => {
     try {
-        // Get location statistics for patients
+        // Patientenverteilung nach Standorten
         const patientLocationStats = await pool.query(`
             SELECT 
                 COALESCE(p.standort, 'Unbekannt') as standort,
@@ -1096,7 +1063,7 @@ app.get('/api/admin/dashboard', async (req, res) => {
             ORDER BY p.standort
         `);
 
-        // Get pflegekraft statistics by location
+        // Pflegekraft-Statistiken nach Standort
         const pflegekraftLocationStats = await pool.query(`
             SELECT 
                 COALESCE(m.standort, 'Unbekannt') as standort,
@@ -1114,7 +1081,7 @@ app.get('/api/admin/dashboard', async (req, res) => {
             ORDER BY m.standort
         `);
 
-        // Get recent transfers (last 7 days)
+        // Aktuelle Transfers (letzte 7 Tage)
         const recentTransfers = await pool.query(`
             SELECT 
                 sv.*,
@@ -1126,7 +1093,7 @@ app.get('/api/admin/dashboard', async (req, res) => {
             LIMIT 5
         `);
 
-        // Get workload alerts (Pflegekräfte with >20 patients)
+        // Arbeitsbelastungs-Warnungen (Pflegekräfte mit >20 Patienten)
         const workloadAlerts = await pool.query(`
             SELECT 
                 m.id,
@@ -1141,7 +1108,7 @@ app.get('/api/admin/dashboard', async (req, res) => {
             ORDER BY COUNT(pz.patient_id) DESC
         `);
 
-        // Get overall system statistics
+        // Allgemeine Systemstatistiken
         const systemStats = await pool.query(`
             SELECT 
                 (SELECT COUNT(*) FROM patienten WHERE status = 'active') as total_active_patients,
@@ -1171,33 +1138,14 @@ app.get('/api/admin/dashboard', async (req, res) => {
     }
 });
 
-// ========== TRANSFER MANAGEMENT ENDPOINTS - FIXED ==========
-
-// Handle admin-initiated transfers
-// ========== ENHANCED TRANSFER LOGIC WITH AUTO-REASSIGNMENT ==========
-
-// ========== FIXED TRANSFER LOGIC - HANDLES UNIQUE CONSTRAINT ==========
-
-// Replace your existing admin-initiated transfer endpoint in server.js
-
-
-// ========== FIXED APPROVE TRANSFER REQUEST ==========
-
-// ========== SIMPLE TRANSFER FIX - ALWAYS REASSIGN ON LOCATION CHANGE ==========
-
-// ========== FIXED ADMIN TRANSFER ENDPOINT ==========
-// Replace your existing /api/admin/transfers endpoint with this corrected version
-
-// ========== COMPLETELY FIXED ADMIN TRANSFER ENDPOINT ==========
-// Replace your existing /api/admin/transfers endpoint with this version
-
+// Admin-initiierter Transfer mit automatischer Neuzuweisung
 app.post('/api/admin/transfers', async (req, res) => {
     const { patientId, newLocation, reason, adminId } = req.body;
 
     try {
         await pool.query('BEGIN');
 
-        // Get current patient info and assignment
+        // Aktuelle Patienteninformationen und Zuweisung abrufen
         const currentPatientQuery = `
             SELECT 
                 p.id,
@@ -1226,38 +1174,37 @@ app.post('/api/admin/transfers', async (req, res) => {
             throw new Error('Patient ist bereits am gewünschten Standort');
         }
 
-        console.log(`🔄 Transfer: ${patient.vorname} ${patient.nachname}`);
-        console.log(`📍 Von: ${oldLocation} → Nach: ${newLocation}`);
-        console.log(`👨‍⚕️ Aktuelle Pflegekraft: ${patient.current_pflegekraft_name} (ID: ${patient.current_pflegekraft_id})`);
-        console.log(`📋 Assignment ID: ${patient.assignment_id}`);
+        console.log(`Transfer: ${patient.vorname} ${patient.nachname}`);
+        console.log(`Von: ${oldLocation} → Nach: ${newLocation}`);
+        console.log(`Aktuelle Pflegekraft: ${patient.current_pflegekraft_name} (ID: ${patient.current_pflegekraft_id})`);
 
-        // Step 1: Update patient location
+        // Schritt 1: Patientenstandort aktualisieren
         await pool.query('UPDATE patienten SET standort = $1 WHERE id = $2', [newLocation, patientId]);
 
-        // Step 2: Log the transfer in standort_verlauf
+        // Schritt 2: Transfer in standort_verlauf protokollieren
         await pool.query(
             'INSERT INTO standort_verlauf (patient_id, alter_standort, neuer_standort, grund, geaendert_von, geaendert_am) VALUES ($1, $2, $3, $4, $5, NOW())',
             [patientId, oldLocation, newLocation, reason, adminId]
         );
 
-        // Step 3: Handle Pflegekraft reassignment
+        // Schritt 3: Pflegekraft-Neuzuweisung verwalten
         let reassignmentMessage = '';
 
         if (patient.current_pflegekraft_id && patient.assignment_id) {
-            // Patient has a current assignment - we need to handle reassignment
+            // Patient hat aktuelle Zuweisung - Neuzuweisung prüfen
 
-            console.log(`🔍 Aktuelle Zuweisung gefunden - prüfe Pflegekraft-Standort...`);
+            console.log(`Aktuelle Zuweisung gefunden - prüfe Pflegekraft-Standort...`);
 
-            // Check if current Pflegekraft is also at the new location
+            // Prüfen ob aktuelle Pflegekraft auch am neuen Standort arbeitet
             if (patient.pflegekraft_location === newLocation) {
-                // Same Pflegekraft can continue caring - no reassignment needed
+                // Gleiche Pflegekraft kann weiter betreuen - keine Neuzuweisung nötig
                 reassignmentMessage = ` (Pflegekraft ${patient.current_pflegekraft_name} arbeitet bereits am Zielort - Zuweisung beibehalten)`;
-                console.log(`✅ Pflegekraft bleibt zugewiesen (gleicher Standort)`);
+                console.log(`Pflegekraft bleibt zugewiesen (gleicher Standort)`);
             } else {
-                // Pflegekraft is at different location - need to reassign
-                console.log(`🔄 Pflegekraft ist an anderem Standort - suche neue Pflegekraft am Standort ${newLocation}...`);
+                // Pflegekraft ist an anderem Standort - Neuzuweisung erforderlich
+                console.log(`Pflegekraft ist an anderem Standort - suche neue Pflegekraft am Standort ${newLocation}...`);
 
-                // Find available Pflegekraft at new location
+                // Verfügbare Pflegekraft am neuen Standort finden
                 const findNewPflegekraftQuery = `
                     SELECT 
                         m.id,
@@ -1277,52 +1224,52 @@ app.post('/api/admin/transfers', async (req, res) => {
                 const newPflegekraftResult = await pool.query(findNewPflegekraftQuery, [newLocation]);
 
                 if (newPflegekraftResult.rows.length > 0) {
-                    // Found available Pflegekraft at new location
+                    // Verfügbare Pflegekraft am neuen Standort gefunden
                     const newPflegekraft = newPflegekraftResult.rows[0];
-                    console.log(`✅ Neue Pflegekraft gefunden: ${newPflegekraft.name} (ID: ${newPflegekraft.id}, ${newPflegekraft.current_patients}/24 Patienten)`);
+                    console.log(`Neue Pflegekraft gefunden: ${newPflegekraft.name} (ID: ${newPflegekraft.id}, ${newPflegekraft.current_patients}/24 Patienten)`);
 
-                    // DIRECT UPDATE - Update the existing assignment record
+                    // Bestehende Zuweisung aktualisieren
                     const updateResult = await pool.query(
                         'UPDATE patient_zuweisung SET mitarbeiter_id = $1, zuweisung_datum = NOW(), updated_at = NOW() WHERE id = $2 RETURNING *',
                         [newPflegekraft.id, patient.assignment_id]
                     );
 
-                    console.log(`📝 Assignment updated:`, updateResult.rows[0]);
+                    console.log(`Assignment updated:`, updateResult.rows[0]);
 
                     reassignmentMessage = ` und neuer Pflegekraft ${newPflegekraft.name} zugewiesen`;
 
-                    // Notify new Pflegekraft
+                    // Neue Pflegekraft benachrichtigen
                     await pool.query(
                         'INSERT INTO benachrichtigungen (patient_id, mitarbeiter_id, typ, titel, nachricht, prioritaet, erstellt_am) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
                         [patientId, newPflegekraft.id, 'new_patient_assignment', 'Neuer Patient zugewiesen', `${patient.vorname} ${patient.nachname} wurde Ihnen durch Transfer von ${oldLocation} zugewiesen.`, 'normal']
                     );
 
-                    // Notify old Pflegekraft
+                    // Alte Pflegekraft benachrichtigen
                     await pool.query(
                         'INSERT INTO benachrichtigungen (patient_id, mitarbeiter_id, typ, titel, nachricht, prioritaet, erstellt_am) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
                         [patientId, patient.current_pflegekraft_id, 'patient_transferred', 'Patient verlegt', `${patient.vorname} ${patient.nachname} wurde nach ${newLocation} verlegt und einer anderen Pflegekraft zugewiesen.`, 'normal']
                     );
 
                 } else {
-                    // No available Pflegekraft at new location - mark as unassigned
-                    console.log(`❌ Keine verfügbare Pflegekraft am Standort ${newLocation}`);
+                    // Keine verfügbare Pflegekraft am neuen Standort - als nicht zugewiesen markieren
+                    console.log(`Keine verfügbare Pflegekraft am Standort ${newLocation}`);
 
                     const deactivateResult = await pool.query(
                         'UPDATE patient_zuweisung SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
                         ['unassigned', patient.assignment_id]
                     );
 
-                    console.log(`📝 Assignment deactivated:`, deactivateResult.rows[0]);
+                    console.log(`Assignment deactivated:`, deactivateResult.rows[0]);
 
                     reassignmentMessage = ` (⚠️ Keine verfügbare Pflegekraft am Zielort - Patient vorübergehend ohne Zuweisung)`;
 
-                    // Notify old Pflegekraft
+                    // Alte Pflegekraft benachrichtigen
                     await pool.query(
                         'INSERT INTO benachrichtigungen (patient_id, mitarbeiter_id, typ, titel, nachricht, prioritaet, erstellt_am) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
                         [patientId, patient.current_pflegekraft_id, 'patient_transferred', 'Patient verlegt', `${patient.vorname} ${patient.nachname} wurde nach ${newLocation} verlegt. Keine Pflegekraft verfügbar am Zielort.`, 'high']
                     );
 
-                    // Alert administrators
+                    // Administratoren warnen
                     await pool.query(
                         'INSERT INTO benachrichtigungen (patient_id, typ, titel, nachricht, prioritaet, erstellt_am) VALUES ($1, $2, $3, $4, $5, NOW())',
                         [patientId, 'admin_alert', 'Patient ohne Pflegekraft', `Patient ${patient.vorname} ${patient.nachname} wurde nach ${newLocation} verlegt, aber keine Pflegekraft verfügbar. Manuelle Zuweisung erforderlich.`, 'high']
@@ -1330,8 +1277,8 @@ app.post('/api/admin/transfers', async (req, res) => {
                 }
             }
         } else {
-            // Patient had no assignment - try to assign to someone at new location
-            console.log(`🔍 Patient hatte keine Zuweisung - suche Pflegekraft am neuen Standort...`);
+            // Patient hatte keine Zuweisung - versuche Zuweisung am neuen Standort
+            console.log(`Patient hatte keine Zuweisung - suche Pflegekraft am neuen Standort...`);
 
             const findPflegekraftQuery = `
                 SELECT 
@@ -1353,30 +1300,30 @@ app.post('/api/admin/transfers', async (req, res) => {
 
             if (pflegekraftResult.rows.length > 0) {
                 const pflegekraft = pflegekraftResult.rows[0];
-                console.log(`✅ Pflegekraft für unassigned Patient gefunden: ${pflegekraft.name}`);
+                console.log(`Pflegekraft für unassigned Patient gefunden: ${pflegekraft.name}`);
 
-                // Create new assignment
+                // Neue Zuweisung erstellen
                 const createResult = await pool.query(
                     'INSERT INTO patient_zuweisung (patient_id, mitarbeiter_id, status, zuweisung_datum) VALUES ($1, $2, $3, NOW()) ON CONFLICT (patient_id) DO UPDATE SET mitarbeiter_id = EXCLUDED.mitarbeiter_id, zuweisung_datum = EXCLUDED.zuweisung_datum, status = EXCLUDED.status, updated_at = NOW() RETURNING *',
                     [patientId, pflegekraft.id, 'active']
                 );
 
-                console.log(`📝 New assignment created:`, createResult.rows[0]);
+                console.log(`New assignment created:`, createResult.rows[0]);
 
                 reassignmentMessage = ` und Pflegekraft ${pflegekraft.name} zugewiesen`;
 
-                // Notify new Pflegekraft
+                // Neue Pflegekraft benachrichtigen
                 await pool.query(
                     'INSERT INTO benachrichtigungen (patient_id, mitarbeiter_id, typ, titel, nachricht, prioritaet, erstellt_am) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
                     [patientId, pflegekraft.id, 'new_patient_assignment', 'Neuer Patient zugewiesen', `${patient.vorname} ${patient.nachname} wurde Ihnen durch Transfer zugewiesen.`, 'normal']
                 );
             } else {
-                console.log(`❌ Keine Pflegekraft verfügbar für unassigned Patient`);
+                console.log(`Keine Pflegekraft verfügbar für unassigned Patient`);
                 reassignmentMessage = ` (⚠️ Keine Pflegekraft verfügbar am Zielort)`;
             }
         }
 
-        // Verify the final state
+        // Endgültigen Zustand überprüfen
         const verifyQuery = `
             SELECT 
                 p.standort,
@@ -1389,10 +1336,10 @@ app.post('/api/admin/transfers', async (req, res) => {
             WHERE p.id = $1
         `;
         const finalState = await pool.query(verifyQuery, [patientId]);
-        console.log(`🔍 Final state:`, finalState.rows[0]);
+        console.log(`Final state:`, finalState.rows[0]);
 
         await pool.query('COMMIT');
-        console.log(`✅ Transfer abgeschlossen: ${patient.vorname} ${patient.nachname}${reassignmentMessage}`);
+        console.log(`Transfer abgeschlossen: ${patient.vorname} ${patient.nachname}${reassignmentMessage}`);
 
         res.json({
             success: true,
@@ -1402,7 +1349,7 @@ app.post('/api/admin/transfers', async (req, res) => {
 
     } catch (error) {
         await pool.query('ROLLBACK');
-        console.error('❌ Transfer Fehler:', error);
+        console.error('Transfer Fehler:', error);
         res.status(500).json({
             success: false,
             message: error.message || 'Fehler beim Transfer'
@@ -1410,8 +1357,7 @@ app.post('/api/admin/transfers', async (req, res) => {
     }
 });
 
-// ========== DEBUG ENDPOINT TO CHECK CURRENT STATE ==========
-// Add this endpoint to help debug the current state
+// Debug-Endpunkt zum Überprüfen des aktuellen Patientenstatus
 app.get('/api/debug/patient/:patientId', async (req, res) => {
     const { patientId } = req.params;
 
@@ -1449,9 +1395,8 @@ app.get('/api/debug/patient/:patientId', async (req, res) => {
         });
     }
 });
-// ========== FIXED APPROVE TRANSFER REQUEST ENDPOINT ==========
-// Replace your existing /api/admin/transfers/requests/:requestId/approve endpoint
 
+// Transfer-Anfrage genehmigen
 app.post('/api/admin/transfers/requests/:requestId/approve', async (req, res) => {
     const { requestId } = req.params;
     const { adminId, adminResponse } = req.body;
@@ -1459,7 +1404,7 @@ app.post('/api/admin/transfers/requests/:requestId/approve', async (req, res) =>
     try {
         await pool.query('BEGIN');
 
-        // Get request details
+        // Anfrage-Details abrufen
         const requestResult = await pool.query('SELECT * FROM transfer_requests WHERE id = $1 AND status = $2', [requestId, 'pending']);
 
         if (requestResult.rows.length === 0) {
@@ -1472,7 +1417,7 @@ app.post('/api/admin/transfers/requests/:requestId/approve', async (req, res) =>
 
         const request = requestResult.rows[0];
 
-        // Get patient info and current assignment
+        // Patienteninformationen und aktuelle Zuweisung abrufen
         const patientInfo = await pool.query(`
             SELECT 
                 p.vorname, p.nachname, 
@@ -1487,26 +1432,26 @@ app.post('/api/admin/transfers/requests/:requestId/approve', async (req, res) =>
 
         const patient = patientInfo.rows[0];
 
-        console.log(`🔄 Genehmige Transfer-Antrag: ${patient.vorname} ${patient.nachname} → ${request.gewuenschter_standort}`);
+        console.log(`Genehmige Transfer-Antrag: ${patient.vorname} ${patient.nachname} → ${request.gewuenschter_standort}`);
 
-        // Update patient location
+        // Patientenstandort aktualisieren
         await pool.query('UPDATE patienten SET standort = $1 WHERE id = $2', [request.gewuenschter_standort, request.patient_id]);
 
-        // Log transfer
+        // Transfer protokollieren
         await pool.query(
             'INSERT INTO standort_verlauf (patient_id, alter_standort, neuer_standort, grund, geaendert_von, geaendert_am) VALUES ($1, $2, $3, $4, $5, NOW())',
             [request.patient_id, request.current_standort, request.gewuenschter_standort, `Genehmigter Transfer-Antrag: ${request.grund}`, adminId]
         );
 
-        // Handle reassignment (same logic as admin transfer)
+        // Neuzuweisung verwalten (gleiche Logik wie Admin-Transfer)
         let reassignmentMessage = '';
 
         if (patient.mitarbeiter_id) {
-            // Check if current Pflegekraft is also at new location
+            // Prüfen ob aktuelle Pflegekraft auch am neuen Standort arbeitet
             if (patient.pflegekraft_location === request.gewuenschter_standort) {
                 reassignmentMessage = ` (Pflegekraft ${patient.current_pflegekraft_name} arbeitet bereits am Zielort)`;
             } else {
-                // Find new Pflegekraft at destination
+                // Neue Pflegekraft am Zielort finden
                 const newPflegekraftResult = await pool.query(`
                     SELECT 
                         m.id,
@@ -1526,7 +1471,7 @@ app.post('/api/admin/transfers/requests/:requestId/approve', async (req, res) =>
                 if (newPflegekraftResult.rows.length > 0) {
                     const newPflegekraft = newPflegekraftResult.rows[0];
 
-                    // Update assignment
+                    // Zuweisung aktualisieren
                     await pool.query(
                         'UPDATE patient_zuweisung SET mitarbeiter_id = $1, zuweisung_datum = NOW(), updated_at = NOW() WHERE patient_id = $2 AND status = $3',
                         [newPflegekraft.id, request.patient_id, 'active']
@@ -1534,19 +1479,19 @@ app.post('/api/admin/transfers/requests/:requestId/approve', async (req, res) =>
 
                     reassignmentMessage = ` und neuer Pflegekraft ${newPflegekraft.name} zugewiesen`;
 
-                    // Notify new Pflegekraft
+                    // Neue Pflegekraft benachrichtigen
                     await pool.query(
                         'INSERT INTO benachrichtigungen (patient_id, mitarbeiter_id, typ, titel, nachricht, prioritaet, erstellt_am) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
                         [request.patient_id, newPflegekraft.id, 'new_patient_assignment', 'Neuer Patient zugewiesen', `${patient.vorname} ${patient.nachname} wurde Ihnen durch genehmigten Transfer zugewiesen.`, 'normal']
                     );
 
-                    // Notify old Pflegekraft
+                    // Alte Pflegekraft benachrichtigen
                     await pool.query(
                         'INSERT INTO benachrichtigungen (patient_id, mitarbeiter_id, typ, titel, nachricht, prioritaet, erstellt_am) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
                         [request.patient_id, patient.mitarbeiter_id, 'patient_transferred', 'Patient verlegt', `${patient.vorname} ${patient.nachname} wurde nach ${request.gewuenschter_standort} verlegt.`, 'normal']
                     );
                 } else {
-                    // No Pflegekraft available
+                    // Keine Pflegekraft verfügbar
                     await pool.query(
                         'UPDATE patient_zuweisung SET status = $1, updated_at = NOW() WHERE patient_id = $2 AND status = $3',
                         ['unassigned', request.patient_id, 'active']
@@ -1556,21 +1501,21 @@ app.post('/api/admin/transfers/requests/:requestId/approve', async (req, res) =>
             }
         }
 
-        // Update request status
+        // Anfrage-Status aktualisieren
         const finalResponse = (adminResponse || 'Transfer-Anfrage genehmigt und durchgeführt') + reassignmentMessage;
         const updateResult = await pool.query(
             'UPDATE transfer_requests SET status = $1, admin_response = $2, admin_id = $3, bearbeitet_am = NOW() WHERE id = $4 RETURNING *',
             ['approved', finalResponse, adminId, requestId]
         );
 
-        // Notify patient of approval
+        // Patient über Genehmigung benachrichtigen
         await pool.query(
             'INSERT INTO benachrichtigungen (patient_id, typ, titel, nachricht, prioritaet, erstellt_am) VALUES ($1, $2, $3, $4, $5, NOW())',
             [request.patient_id, 'transfer_approved', 'Transfer genehmigt', `Ihr Transfer-Antrag von ${request.current_standort} nach ${request.gewuenschter_standort} wurde genehmigt und durchgeführt.${reassignmentMessage}`, 'normal']
         );
 
         await pool.query('COMMIT');
-        console.log(`✅ Transfer-Antrag genehmigt: ${patient.vorname} ${patient.nachname}`);
+        console.log(`Transfer-Antrag genehmigt: ${patient.vorname} ${patient.nachname}`);
 
         res.json({
             success: true,
@@ -1580,7 +1525,7 @@ app.post('/api/admin/transfers/requests/:requestId/approve', async (req, res) =>
 
     } catch (error) {
         await pool.query('ROLLBACK');
-        console.error('❌ Transfer-Antrag Genehmigungsfehler:', error);
+        console.error('Transfer-Antrag Genehmigungsfehler:', error);
         res.status(500).json({
             success: false,
             message: 'Fehler bei der Genehmigung der Transfer-Anfrage: ' + error.message
@@ -1588,9 +1533,9 @@ app.post('/api/admin/transfers/requests/:requestId/approve', async (req, res) =>
     }
 });
 
-// Add these debug endpoints to your server.js to check what's actually in the database
+// Debug-Endpunkte zur Überprüfung der Datenbankeinträge
 
-// 1. Check all patient assignments
+// Alle Patientenzuweisungen anzeigen
 app.get('/api/debug/all-assignments', async (req, res) => {
     try {
         const query = `
@@ -1617,7 +1562,7 @@ app.get('/api/debug/all-assignments', async (req, res) => {
     }
 });
 
-// 2. Check all Pflegekraft and their current workload
+// Pflegekraft-Arbeitsbelastung anzeigen
 app.get('/api/debug/pflegekraft-workload', async (req, res) => {
     try {
         const query = `
@@ -1641,38 +1586,7 @@ app.get('/api/debug/pflegekraft-workload', async (req, res) => {
     }
 });
 
-// 3. Check specific patient (Fatima)
-app.get('/api/debug/fatima', async (req, res) => {
-    try {
-        const patientQuery = `
-            SELECT * FROM patienten WHERE vorname = 'Fatima' AND nachname = 'Demir'
-        `;
-
-        const assignmentQuery = `
-            SELECT pz.*, m.vorname, m.nachname, m.standort 
-            FROM patient_zuweisung pz
-            LEFT JOIN mitarbeiter m ON pz.mitarbeiter_id = m.id
-            WHERE pz.patient_id = (SELECT id FROM patienten WHERE vorname = 'Fatima' AND nachname = 'Demir')
-        `;
-
-        const [patientResult, assignmentResult] = await Promise.all([
-            pool.query(patientQuery),
-            pool.query(assignmentQuery)
-        ]);
-
-        res.json({
-            patient: patientResult.rows[0],
-            assignments: assignmentResult.rows
-        });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-
-// ========== HELPER FUNCTION: Get Available Pflegekraft ==========
-
-// Add this helper function to your server.js
+// Hilfsfunktion: Verfügbare Pflegekraft am Standort finden
 async function findAvailablePflegekraftAtLocation(location) {
     const query = `
         SELECT 
@@ -1694,10 +1608,11 @@ async function findAvailablePflegekraftAtLocation(location) {
     const result = await pool.query(query, [location]);
     return result.rows.length > 0 ? result.rows[0] : null;
 }
-// Add this function to server.js
+
+// Kritische Gesundheitsdaten überwachen und Alarme senden
 async function checkCriticalHealthData(patientId, gesundheitsdatenId) {
     try {
-        // Get the critical health data with patient and assignment info
+        // Kritische Gesundheitsdaten mit Patienten- und Zuweisungsinformationen abrufen
         const criticalDataQuery = `
             SELECT 
                 g.id,
@@ -1725,16 +1640,16 @@ async function checkCriticalHealthData(patientId, gesundheitsdatenId) {
         const result = await pool.query(criticalDataQuery, [gesundheitsdatenId]);
 
         if (result.rows.length === 0) {
-            return; // Not critical or not found
+            return;
         }
 
         const criticalData = result.rows[0];
-        console.log(`🚨 CRITICAL ALERT: ${criticalData.patient_name} - Room ${criticalData.zimmer_nummer}`);
+        console.log(`CRITICAL ALERT: ${criticalData.patient_name} - Room ${criticalData.zimmer_nummer}`);
 
-        // Generate alert message
+        // Alarm-Nachricht generieren
         const alertMessage = generateCriticalAlertMessage(criticalData);
 
-        // Send alerts to relevant people
+        // Alarme an relevante Personen senden
         await sendCriticalAlerts(criticalData, alertMessage);
 
     } catch (error) {
@@ -1742,6 +1657,7 @@ async function checkCriticalHealthData(patientId, gesundheitsdatenId) {
     }
 }
 
+// Kritische Alarm-Nachricht generieren
 function generateCriticalAlertMessage(data) {
     const criticalValues = [];
 
@@ -1764,10 +1680,11 @@ ${data.bemerkungen ? 'Bemerkung: ' + data.bemerkungen : ''}
 Sofortige Aufmerksamkeit erforderlich!`;
 }
 
+// Kritische Alarme an relevante Personen senden
 async function sendCriticalAlerts(criticalData, alertMessage) {
     const alerts = [];
 
-    // Priority 1: Assigned Pflegekraft
+    // Priorität 1: Zugewiesene Pflegekraft
     if (criticalData.assigned_pflegekraft_id) {
         alerts.push({
             patient_id: criticalData.patient_id,
@@ -1779,7 +1696,7 @@ async function sendCriticalAlerts(criticalData, alertMessage) {
         });
     }
 
-    // Priority 1: All Administrators
+    // Priorität 1: Alle Administratoren
     const adminQuery = `
         SELECT id FROM mitarbeiter 
         WHERE rolle = 'administrator' AND status = 'active'
@@ -1797,7 +1714,7 @@ async function sendCriticalAlerts(criticalData, alertMessage) {
         });
     });
 
-    // Priority 2: Other Pflegekräfte at same location (if no assigned Pflegekraft)
+    // Priorität 2: Andere Pflegekräfte am gleichen Standort (falls keine zugewiesene Pflegekraft)
     if (!criticalData.assigned_pflegekraft_id) {
         const locationPflegekraftQuery = `
             SELECT id FROM mitarbeiter 
@@ -1820,7 +1737,7 @@ async function sendCriticalAlerts(criticalData, alertMessage) {
         });
     }
 
-    // Insert all alerts into database
+    // Alle Alarme in Datenbank einfügen
     for (const alert of alerts) {
         await pool.query(
             'INSERT INTO benachrichtigungen (patient_id, mitarbeiter_id, typ, titel, nachricht, prioritaet, erstellt_am) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
@@ -1828,11 +1745,10 @@ async function sendCriticalAlerts(criticalData, alertMessage) {
         );
     }
 
-    console.log(`📢 Sent ${alerts.length} critical health alerts`);
+    console.log(`Sent ${alerts.length} critical health alerts`);
 }
-// ========== UTILITY ENDPOINT: Check Pflegekraft Availability ==========
 
-// Add this endpoint to check availability at different locations
+// Pflegekraft-Verfügbarkeit an Standort prüfen
 app.get('/api/admin/pflegekraft-availability/:location', async (req, res) => {
     const { location } = req.params;
 
@@ -1870,7 +1786,7 @@ app.get('/api/admin/pflegekraft-availability/:location', async (req, res) => {
     }
 });
 
-// Get recent transfers
+// Aktuelle Transfers abrufen
 app.get('/api/admin/transfers/recent', async (req, res) => {
     try {
         const recentTransfersQuery = `
@@ -1901,12 +1817,10 @@ app.get('/api/admin/transfers/recent', async (req, res) => {
     }
 });
 
-// ========== DETAILED STATISTICS ENDPOINTS ==========
-
-// Get detailed statistics for the statistics section
+// Detaillierte Statistiken für Admin
 app.get('/api/admin/statistics/detailed', async (req, res) => {
     try {
-        // Location statistics with more details
+        // Standort-Statistiken mit mehr Details
         const locationStatsQuery = `
             SELECT 
                 p.standort,
@@ -1918,7 +1832,7 @@ app.get('/api/admin/statistics/detailed', async (req, res) => {
             ORDER BY p.standort
         `;
 
-        // Pflegekraft workload statistics
+        // Pflegekraft-Arbeitsbelastungsstatistiken
         const workloadStatsQuery = `
             SELECT 
                 m.id,
@@ -1955,9 +1869,7 @@ app.get('/api/admin/statistics/detailed', async (req, res) => {
     }
 });
 
-// ========== PATIENT MANAGEMENT ENDPOINTS ==========
-
-// Get all patients for admin management
+// Alle Patienten für Admin-Verwaltung
 app.get('/api/admin/patients', async (req, res) => {
     try {
         const patientsQuery = `
@@ -1993,7 +1905,7 @@ app.get('/api/admin/patients', async (req, res) => {
     }
 });
 
-// Get patient's current location for admin transfer form
+// Aktueller Patientenstandort für Admin-Transfer-Formular
 app.get('/api/patients/:patientId/location', async (req, res) => {
     const { patientId } = req.params;
 
@@ -2027,9 +1939,7 @@ app.get('/api/patients/:patientId/location', async (req, res) => {
     }
 });
 
-// ========== PFLEGEKRAFT MANAGEMENT ENDPOINTS ==========
-
-// Get all pflegekraft for admin management
+// Alle Pflegekräfte für Admin-Verwaltung
 app.get('/api/admin/pflegekraefte', async (req, res) => {
     try {
         const pflegekraftQuery = `
@@ -2065,9 +1975,7 @@ app.get('/api/admin/pflegekraefte', async (req, res) => {
     }
 });
 
-// ========== ASSIGNMENT MANAGEMENT ENDPOINTS ==========
-
-// Get assignment overview
+// Zuweisungsübersicht für Admin
 app.get('/api/admin/assignments/overview', async (req, res) => {
     try {
         const assignmentsQuery = `
@@ -2102,12 +2010,12 @@ app.get('/api/admin/assignments/overview', async (req, res) => {
     }
 });
 
-// Manually assign patient to pflegekraft
+// Manuelle Patientenzuweisung
 app.post('/api/admin/assignments/manual', async (req, res) => {
     const { patientId, pflegekraftId, adminId } = req.body;
 
     try {
-        // Check if patient is already assigned
+        // Prüfen ob Patient bereits zugewiesen ist
         const existingQuery = `
             SELECT * FROM patient_zuweisung
             WHERE patient_id = $1 AND status = 'active'
@@ -2121,7 +2029,7 @@ app.post('/api/admin/assignments/manual', async (req, res) => {
             });
         }
 
-        // Check pflegekraft capacity
+        // Pflegekraft-Kapazität prüfen
         const capacityQuery = `
             SELECT COUNT(*) as current_patients
             FROM patient_zuweisung
@@ -2136,7 +2044,7 @@ app.post('/api/admin/assignments/manual', async (req, res) => {
             });
         }
 
-        // Create assignment
+        // Zuweisung erstellen
         const assignQuery = `
             INSERT INTO patient_zuweisung (patient_id, mitarbeiter_id, status, assigned_at)
             VALUES ($1, $2, 'active', NOW())
@@ -2160,13 +2068,13 @@ app.post('/api/admin/assignments/manual', async (req, res) => {
     }
 });
 
-// Remove assignment
+// Zuweisung entfernen
 app.delete('/api/admin/assignments/:assignmentId', async (req, res) => {
     const { assignmentId } = req.params;
     const { reason = 'Admin removal' } = req.body;
 
     try {
-        // Update assignment status
+        // Zuweisungsstatus aktualisieren
         const updateQuery = `
             UPDATE patient_zuweisung 
             SET status = $1, updated_at = NOW()
@@ -2197,9 +2105,7 @@ app.delete('/api/admin/assignments/:assignmentId', async (req, res) => {
     }
 });
 
-// ========== NOTIFICATION MANAGEMENT ==========
-
-// Get system notifications for admin
+// System-Benachrichtigungen für Admin
 app.get('/api/admin/notifications', async (req, res) => {
     try {
         const notificationsQuery = `
@@ -2231,15 +2137,13 @@ app.get('/api/admin/notifications', async (req, res) => {
     }
 });
 
-// ========== SYSTEM HEALTH ENDPOINTS ==========
-
-// Get system health status
+// System-Gesundheitsstatus
 app.get('/api/admin/system/health', async (req, res) => {
     try {
-        // Database connection test
+        // Datenbankverbindungstest
         const dbTest = await pool.query('SELECT NOW()');
 
-        // Get various system metrics
+        // Verschiedene System-Metriken abrufen
         const metricsQuery = `
             SELECT 
                 (SELECT COUNT(*) FROM patienten WHERE status = 'active') as active_patients,
@@ -2273,9 +2177,7 @@ app.get('/api/admin/system/health', async (req, res) => {
     }
 });
 
-// ========== DATA EXPORT ENDPOINTS ==========
-
-// Export data for admin (basic CSV export)
+// Datenexport für Admin (grundlegender CSV-Export)
 app.get('/api/admin/export/:type', async (req, res) => {
     const { type } = req.params;
 
@@ -2335,7 +2237,7 @@ app.get('/api/admin/export/:type', async (req, res) => {
 
         const result = await pool.query(query);
 
-        // Convert to CSV
+        // In CSV konvertieren
         if (result.rows.length === 0) {
             return res.status(404).json({
                 success: false,
@@ -2366,28 +2268,28 @@ app.get('/api/admin/export/:type', async (req, res) => {
     }
 });
 
-// Create the transfer_requests table if it doesn't exist with correct schema
+// Transfer-Tabellen initialisieren
 app.post('/api/admin/init-transfer-tables', async (req, res) => {
     try {
         const createTableQuery = `
             CREATE TABLE IF NOT EXISTS transfer_requests (
                                                              id SERIAL PRIMARY KEY,
                                                              patient_id INTEGER REFERENCES patienten(id) ON DELETE CASCADE,
-                requester_type VARCHAR(20) NOT NULL, -- 'patient' or 'angehoerige'
-                requester_id INTEGER, -- patient_id if patient, angehoerige_id if family member
+                requester_type VARCHAR(20) NOT NULL,
+                requester_id INTEGER,
                 requester_name VARCHAR(200) NOT NULL,
                 current_standort VARCHAR(50) NOT NULL,
                 gewuenschter_standort VARCHAR(50) NOT NULL,
                 grund TEXT NOT NULL,
-                status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
-                admin_id INTEGER REFERENCES mitarbeiter(id), -- who processed the request
-                admin_response TEXT, -- admin's response/reason
+                status VARCHAR(20) DEFAULT 'pending',
+                admin_id INTEGER REFERENCES mitarbeiter(id),
+                admin_response TEXT,
                 erstellt_am TIMESTAMP DEFAULT NOW(),
                 bearbeitet_am TIMESTAMP,
-                prioritaet VARCHAR(20) DEFAULT 'normal' -- 'low', 'normal', 'high', 'urgent'
+                prioritaet VARCHAR(20) DEFAULT 'normal'
                 );
 
-            -- Add indexes
+            -- Indexe hinzufügen
             CREATE INDEX IF NOT EXISTS idx_transfer_requests_patient ON transfer_requests(patient_id);
             CREATE INDEX IF NOT EXISTS idx_transfer_requests_status ON transfer_requests(status);
             CREATE INDEX IF NOT EXISTS idx_transfer_requests_created ON transfer_requests(erstellt_am);
@@ -2409,7 +2311,7 @@ app.post('/api/admin/init-transfer-tables', async (req, res) => {
     }
 });
 
-// Add this endpoint to automatically detect critical health data
+// Kritische Gesundheitsdaten automatisch überprüfen
 app.post('/api/health/check-critical/:gesundheitsdatenId', async (req, res) => {
     const { gesundheitsdatenId } = req.params;
 
@@ -2429,7 +2331,7 @@ app.post('/api/health/check-critical/:gesundheitsdatenId', async (req, res) => {
     }
 });
 
-// Enhanced health data insertion endpoint that automatically checks for critical values
+// Gesundheitsdaten einfügen mit automatischer Kritik-Prüfung
 app.post('/api/health/data', async (req, res) => {
     const {
         patientId,
@@ -2443,7 +2345,7 @@ app.post('/api/health/data', async (req, res) => {
     } = req.body;
 
     try {
-        // Determine if values are critical
+        // Bestimmen ob Werte kritisch sind
         const isCritical = (
             (blutdruckSystolisch && (blutdruckSystolisch > 180 || blutdruckSystolisch < 90)) ||
             (blutdruckDiastolisch && (blutdruckDiastolisch > 120 || blutdruckDiastolisch < 60)) ||
@@ -2452,7 +2354,7 @@ app.post('/api/health/data', async (req, res) => {
             (sauerstoffsaettigung && sauerstoffsaettigung < 90)
         );
 
-        // Insert health data
+        // Gesundheitsdaten einfügen
         const insertQuery = `
             INSERT INTO gesundheitsdaten (
                 patient_id, mitarbeiter_id, blutdruck_systolisch, blutdruck_diastolisch,
@@ -2469,7 +2371,7 @@ app.post('/api/health/data', async (req, res) => {
 
         const newHealthData = result.rows[0];
 
-        // If critical, trigger alert system
+        // Falls kritisch, Alarmsystem auslösen
         if (isCritical) {
             await checkCriticalHealthData(patientId, newHealthData.id);
         }
@@ -2490,7 +2392,7 @@ app.post('/api/health/data', async (req, res) => {
     }
 });
 
-// Get critical notifications for user
+// Kritische Benachrichtigungen für Benutzer abrufen
 app.get('/api/notifications/critical/:userId', async (req, res) => {
     const { userId } = req.params;
     const { userType } = req.query;
@@ -2512,7 +2414,7 @@ app.get('/api/notifications/critical/:userId', async (req, res) => {
                 ORDER BY b.erstellt_am DESC
             `;
         } else {
-            // For patients - they don't get critical health alerts about themselves
+            // Für Patienten - sie erhalten keine kritischen Gesundheitsalarme über sich selbst
             query = `
                 SELECT 
                     b.*,
@@ -2542,7 +2444,7 @@ app.get('/api/notifications/critical/:userId', async (req, res) => {
     }
 });
 
-// Mark notification as read
+// Benachrichtigung als gelesen markieren
 app.put('/api/notifications/:notificationId/read', async (req, res) => {
     const { notificationId } = req.params;
 
@@ -2570,7 +2472,7 @@ app.put('/api/notifications/:notificationId/read', async (req, res) => {
     }
 });
 
-// Demo endpoint: Simulate critical health data
+// Demo-Endpunkt: Kritische Gesundheitsdaten simulieren
 app.post('/api/demo/critical-health', async (req, res) => {
     const { patientId, scenario = 'high_blood_pressure' } = req.body;
 
@@ -2619,7 +2521,7 @@ app.post('/api/demo/critical-health', async (req, res) => {
                 };
         }
 
-        // Insert critical health data
+        // Kritische Gesundheitsdaten einfügen
         const insertQuery = `
             INSERT INTO gesundheitsdaten (
                 patient_id, blutdruck_systolisch, blutdruck_diastolisch,
@@ -2640,7 +2542,7 @@ app.post('/api/demo/critical-health', async (req, res) => {
             healthData.bemerkungen
         ]);
 
-        // Trigger alert system
+        // Alarmsystem auslösen
         await checkCriticalHealthData(patientId, result.rows[0].id);
 
         res.json({
@@ -2658,7 +2560,7 @@ app.post('/api/demo/critical-health', async (req, res) => {
     }
 });
 
-// Get all patients for demo selection
+// Alle Patienten für Demo-Auswahl
 app.get('/api/demo/patients', async (req, res) => {
     try {
         const query = `
@@ -2692,17 +2594,15 @@ app.get('/api/demo/patients', async (req, res) => {
     }
 });
 
-// Serve the demo page
+// Demo-Seite bereitstellen
 app.get('/demo-health-alerts', (req, res) => {
     res.sendFile(path.join(__dirname, 'WEB SEITE', 'demo-health-alerts.html'));
 });
 
-// Initialize critical health monitoring when server starts
+// Gesundheitsüberwachung beim Serverstart initialisieren
 app.post('/api/admin/init-health-monitoring', async (req, res) => {
     try {
-        // Create the health monitoring function as a database function (optional advanced step)
-        // For now, we'll just confirm the tables exist
-
+        // Prüfen ob erforderliche Tabellen existieren
         const checkTablesQuery = `
             SELECT table_name 
             FROM information_schema.tables 
