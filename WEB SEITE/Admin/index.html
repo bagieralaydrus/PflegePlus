@@ -8,10 +8,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-<!-- PARTICLE BACKGROUND CANVAS -->
+<!-- Animierter Hintergrund -->
 <canvas id="bg"></canvas>
 
-<!-- HEADER -->
+<!-- Navigationsheader -->
 <header class="header">
     <div class="header-container">
         <div class="logo">PflegeVision</div>
@@ -24,16 +24,16 @@
     </div>
 </header>
 
-<!-- MAIN CONTENT -->
+<!-- Hauptinhalt -->
 <main class="main">
-    <!-- DASHBOARD OVERVIEW SECTION -->
+    <!-- Dashboard-Übersicht -->
     <section id="dashboardSection" class="dashboard-section">
         <div class="dashboard-header">
             <h2>Administrator Dashboard</h2>
             <p>Willkommen zurück, <span id="adminUsername">Administrator</span>!</p>
         </div>
 
-        <!-- STATS CARDS -->
+        <!-- Statistik-Karten -->
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-icon">👥</div>
@@ -71,7 +71,6 @@
                 </div>
             </div>
 
-            <!-- Around line 60, AFTER the Mönchengladbach card, ADD this: -->
             <div class="stat-card">
                 <div class="stat-icon">🏠</div>
                 <div class="stat-content">
@@ -82,7 +81,7 @@
             </div>
         </div>
 
-        <!-- RECENT ACTIVITIES -->
+        <!-- Aktuelle Aktivitäten -->
         <div class="activity-section">
             <h3>Aktuelle Aktivitäten</h3>
             <div class="activity-list" id="recentActivities">
@@ -95,7 +94,7 @@
             </div>
         </div>
 
-        <!-- WORKLOAD ALERTS -->
+        <!-- Arbeitsbelastungs-Warnungen -->
         <div class="alerts-section">
             <h3>⚠️ Arbeitsbelastung Warnungen</h3>
             <div class="alerts-list" id="workloadAlerts">
@@ -106,7 +105,7 @@
         </div>
     </section>
 
-    <!-- TRANSFER MANAGEMENT SECTION -->
+    <!-- Transfer-Verwaltung -->
     <section id="transferSection" class="transfer-section" style="display: none;">
         <div class="section-header">
             <h2>🔄 Transfer Management</h2>
@@ -115,8 +114,7 @@
             </button>
         </div>
 
-        <!-- TRANSFER FORM -->
-        <!-- Enhanced Transfer Form with Search -->
+        <!-- Transfer-Formular mit Patientensuche -->
         <div id="transferForm" class="modern-card" style="display: none;">
             <h3>Patient Transfer</h3>
             <form id="adminTransferForm" class="modern-form">
@@ -137,12 +135,11 @@
                     </div>
                     <div class="form-group">
                         <label for="newLocation">Neuer Standort:</label>
-                        // In Admin/index.html, update the location dropdown:
                         <select id="newLocation" required>
                             <option value="">-- Standort wählen --</option>
                             <option value="Krefeld">Krefeld</option>
                             <option value="Mönchengladbach">Mönchengladbach</option>
-                            <option value="Zuhause">Zuhause</option>  // ADD THIS
+                            <option value="Zuhause">Zuhause</option>
                         </select>
                     </div>
                 </div>
@@ -159,8 +156,8 @@
             </form>
         </div>
 
+        <!-- Suchergebnis-Styling -->
         <style>
-            /* Search Container Styles */
             .search-container {
                 position: relative;
             }
@@ -218,7 +215,6 @@
                 font-style: italic;
             }
 
-            /* Loading state */
             .search-loading {
                 padding: 0.75rem;
                 text-align: center;
@@ -236,7 +232,8 @@
                 60%, 100% { content: '...'; }
             }
         </style>
-        <!-- PENDING REQUESTS -->
+
+        <!-- Offene Transfer-Anfragen -->
         <div class="modern-card">
             <h3>📋 Offene Transfer-Anfragen</h3>
             <div class="table-wrapper">
@@ -262,7 +259,7 @@
             </div>
         </div>
 
-        <!-- RECENT TRANSFERS -->
+        <!-- Kürzliche Transfers -->
         <div class="modern-card">
             <h3>📝 Kürzliche Transfers</h3>
             <div class="table-wrapper">
@@ -289,7 +286,7 @@
         </div>
     </section>
 
-    <!-- STATISTICS SECTION -->
+    <!-- Statistiken-Bereich -->
     <section id="statisticsSection" class="statistics-section" style="display: none;">
         <div class="section-header">
             <h2>📊 Detaillierte Statistiken</h2>
@@ -323,12 +320,12 @@
     </section>
 </main>
 
-<!-- FOOTER -->
+<!-- Footer -->
 <footer class="footer">
     <p>&copy; 2025 PflegeVision. Alle Rechte vorbehalten.</p>
 </footer>
 
-<!-- NOTIFICATION AREA -->
+<!-- Benachrichtigungsbereich -->
 <div id="notificationArea"></div>
 
 <script src="script.js"></script>

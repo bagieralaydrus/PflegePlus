@@ -3,17 +3,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const timeSelect    = document.getElementById('time');
   const form          = document.getElementById('assignmentForm');
 
-  // Get current user from sessionStorage
+  // Aktueller Benutzer aus sessionStorage
   const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
   const mitarbeiterId = currentUser.id;
 
+  // Benutzerauthentifizierung prüfen
   if (!mitarbeiterId) {
     alert('Benutzer nicht gefunden. Bitte loggen Sie sich erneut ein.');
     window.location.href = '/';
     return;
   }
 
-  // 1) Load ASSIGNED patients only (not all patients)
+  // Nur zugewiesene Patienten laden (nicht alle Patienten)
   fetch(`/api/patients/assigned/${mitarbeiterId}`)
       .then(res => res.json())
       .then(data => {
@@ -37,8 +38,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       })
       .catch(error => {
-        console.error('Error loading patients:', error);
-        // Show error in dropdown
+        console.error('Fehler beim Laden der Patienten:', error);
+        // Fehler im Dropdown anzeigen
         const opt = document.createElement('option');
         opt.value = '';
         opt.textContent = 'Fehler beim Laden der Patienten';
@@ -46,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
         patientSelect.appendChild(opt);
       });
 
-  // 2) Fill hours 0–23
+  // Uhrzeiten 0-23 füllen
   for (let h = 0; h < 24; h++) {
     const opt = document.createElement('option');
     const val = h.toString().padStart(2, '0');
@@ -55,9 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
     timeSelect.appendChild(opt);
   }
 
-  // 3) Form submission
-  // Replace the form submission part in script.js with this improved version:
-
+  // Formular-Übermittlung mit verbesserter Fehlerbehandlung
   form.addEventListener('submit', e => {
     e.preventDefault();
     const payload = {
@@ -86,17 +85,17 @@ document.addEventListener('DOMContentLoaded', () => {
           return res.json();
         })
         .then(data => {
-          console.log('Success response:', data);
+          console.log('Erfolgreiche Antwort:', data);
           alert('Aufgabe erfolgreich gespeichert!');
           form.reset();
         })
         .catch(err => {
-          console.error('Full error details:', err);
+          console.error('Vollständige Fehlerdetails:', err);
           alert(`Detaillierter Fehler: ${err.message}`);
         });
   });
 
-  // ——— Particle Background (unchanged) ———
+  // Animierter Partikelhintergrund
   const canvas = document.getElementById('bg');
   const ctx = canvas.getContext('2d');
   let particles = [];

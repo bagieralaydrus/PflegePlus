@@ -4,16 +4,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const completedEl  = document.getElementById('completedAssignments');
   const tableBody    = document.querySelector('#assignmentsTable tbody');
 
-  // Get current user from sessionStorage
+  // Aktueller Benutzer aus sessionStorage
   const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
   const mitarbeiterId = currentUser.id;
 
+  // Benutzerauthentifizierung prüfen
   if (!mitarbeiterId) {
     alert('Benutzer nicht gefunden. Bitte loggen Sie sich erneut ein.');
     window.location.href = '/';
     return;
   }
 
+  // Dashboard-Daten vom Server laden und anzeigen
   function loadDashboardData() {
     fetch(`/api/dashboard/${mitarbeiterId}`)
         .then(res => {
@@ -28,10 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
             activeEl.textContent    = data.activePatients;
             completedEl.textContent = data.completedAssignments;
 
-            // Clear existing table rows
+            // Tabelle leeren und neue Aufgaben einfügen
             tableBody.innerHTML = '';
 
-            // Add assignments to table
             data.todaysAssignments.forEach(a => {
               const tr = document.createElement('tr');
               tr.innerHTML = `
@@ -56,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         })
         .catch(error => {
-          console.error('Dashboard loading error:', error);
+          console.error('Dashboard-Ladefehler:', error);
           userEl.textContent      = currentUser.username || 'Unbekannt';
           activeEl.textContent    = '—';
           completedEl.textContent = '—';
@@ -71,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
   }
 
-  // Function to complete a task
+  // Aufgabe als abgeschlossen markieren
   window.completeTask = function(assignmentId) {
     if (confirm('Aufgabe als abgeschlossen markieren?')) {
       fetch(`/api/assignments/${assignmentId}/status`, {
@@ -82,20 +83,20 @@ document.addEventListener('DOMContentLoaded', () => {
           .then(res => res.json())
           .then(data => {
             if (data.success) {
-              loadDashboardData(); // Reload dashboard
+              loadDashboardData();
               showNotification('Aufgabe erfolgreich abgeschlossen!', 'success');
             } else {
               showNotification('Fehler beim Abschließen der Aufgabe', 'error');
             }
           })
           .catch(error => {
-            console.error('Complete task error:', error);
+            console.error('Aufgaben-Abschluss Fehler:', error);
             showNotification('Fehler beim Abschließen der Aufgabe', 'error');
           });
     }
   };
 
-  // Function to delete a task
+  // Aufgabe löschen
   window.deleteTask = function(assignmentId) {
     if (confirm('Aufgabe wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) {
       fetch(`/api/assignments/${assignmentId}`, {
@@ -104,23 +105,23 @@ document.addEventListener('DOMContentLoaded', () => {
           .then(res => res.json())
           .then(data => {
             if (data.success) {
-              loadDashboardData(); // Reload dashboard
+              loadDashboardData();
               showNotification('Aufgabe erfolgreich gelöscht!', 'success');
             } else {
               showNotification('Fehler beim Löschen der Aufgabe', 'error');
             }
           })
           .catch(error => {
-            console.error('Delete task error:', error);
+            console.error('Aufgaben-Löschung Fehler:', error);
             showNotification('Fehler beim Löschen der Aufgabe', 'error');
           });
     }
   };
 
-  // Initial load
+  // Initiales Laden der Dashboard-Daten
   loadDashboardData();
 
-  // Particle background code (keep existing code)
+  // Animierter Partikelhintergrund
   const canvas = document.getElementById('bg');
   const ctx    = canvas.getContext('2d');
   let particles = [];
@@ -168,13 +169,15 @@ document.addEventListener('DOMContentLoaded', () => {
   init();
   animate();
 
-  // ========== CRITICAL ALERT SYSTEM ==========
+  // Kritisches Gesundheitsalarmsystem für Pflegekräfte
   setupCriticalAlertMonitoring();
 
   function setupCriticalAlertMonitoring() {
+    // Alle 30 Sekunden auf kritische Alarme prüfen
     setInterval(async () => {
       await checkForCriticalAlerts();
     }, 30000);
+    // Sofort beim Laden prüfen
     checkForCriticalAlerts();
   }
 
@@ -187,15 +190,17 @@ document.addEventListener('DOMContentLoaded', () => {
         displayCriticalAlerts(data.criticalAlerts);
       }
     } catch (error) {
-      console.error('Critical alert check error:', error);
+      console.error('Kritische Alarm-Prüfung Fehler:', error);
     }
   }
 
   function displayCriticalAlerts(alerts) {
+    // Existierendes Banner entfernen
     const existingBanner = document.querySelector('.critical-alert-banner');
     if (existingBanner) existingBanner.remove();
     if (alerts.length === 0) return;
 
+    // Kritisches Alarm-Banner erstellen
     const banner = document.createElement('div');
     banner.className = 'critical-alert-banner';
     banner.innerHTML = `
@@ -220,6 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const alerts = window.currentCriticalAlerts || [];
     if (alerts.length === 0) return;
 
+    // Modal mit detaillierten Alarm-Informationen
     const modal = document.createElement('div');
     modal.className = 'critical-alert-modal';
     modal.innerHTML = `
@@ -253,6 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.appendChild(modal);
   };
 
+  // Einzelnen Alarm als gesehen markieren
   window.acknowledgeAlert = async function(alertId) {
     try {
       const button = event.target;
@@ -270,6 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alertItem.remove();
             const remainingAlerts = document.querySelectorAll('.critical-alert-item');
             if (remainingAlerts.length === 0) {
+              // Alle Alarme bearbeitet - Modal und Banner schließen
               const modal = document.querySelector('.critical-alert-modal');
               const banner = document.querySelector('.critical-alert-banner');
               if (modal) modal.remove();
@@ -282,11 +290,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     } catch (error) {
-      console.error('Error acknowledging alert:', error);
+      console.error('Fehler beim Markieren des Alarms:', error);
       showNotification('❌ Fehler beim Markieren des Alarms', 'error');
     }
   };
 
+  // Alle Alarme vom Banner aus bearbeiten
   window.acknowledgeAllAlertsFromBanner = async function() {
     try {
       const alerts = window.currentCriticalAlerts || [];
@@ -301,6 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  // Alle Alarme aus Modal bearbeiten
   window.acknowledgeAllAlerts = async function() {
     try {
       const alerts = window.currentCriticalAlerts || [];
@@ -321,6 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showNotification(`Patient-Details für ID ${patientId}`, 'info');
   };
 
+  // Benachrichtigungen anzeigen
   function showNotification(message, type = 'info') {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;

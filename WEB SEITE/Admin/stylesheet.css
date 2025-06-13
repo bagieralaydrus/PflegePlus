@@ -1,4 +1,4 @@
-/* ====== Reset & Base Layout (matching your style) ====== */
+/*Reset & Base Layout */
 * {
     box-sizing: border-box;
     margin: 0;
@@ -16,7 +16,7 @@ body {
     background: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 100%);
 }
 
-/* ====== Particle Canvas (same as your other pages) ====== */
+/* Particle Canvas */
 #bg {
     position: fixed;
     top: 0;
@@ -26,7 +26,7 @@ body {
     z-index: -1;
 }
 
-/* ====== Header (matching your existing style) ====== */
+/* Header */
 .header {
     position: fixed;
     top: 0;
@@ -94,7 +94,7 @@ body {
     font-size: 1.1rem;
 }
 
-/* ====== Stats Grid (enhanced cards) ====== */
+/* ====== Stats Grid ====== */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -475,7 +475,7 @@ table tr:hover {
     border-color: #f5c6cb;
 }
 
-/* ====== Footer (matching your style) ====== */
+/* ====== Footer ====== */
 .footer {
     position: fixed;
     bottom: 0;

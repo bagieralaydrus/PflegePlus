@@ -1,17 +1,18 @@
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🔧 Admin Dashboard initializing...');
+    console.log('Admin Dashboard wird initialisiert...');
 
-    // Get current user from sessionStorage
+    // Aktueller Benutzer aus sessionStorage abrufen
     const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
     const adminId = currentUser.id;
 
+    // Administratorberechtigung prüfen
     if (!adminId || currentUser.type !== 'mitarbeiter') {
         alert('Keine Administratorberechtigung. Bitte loggen Sie sich erneut ein.');
         window.location.href = '/';
         return;
     }
 
-    // Initialize dashboard
+    // Dashboard initialisieren
     init();
 
     async function init() {
@@ -22,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setupAutoRefresh();
     }
 
-    // ========== PARTICLE BACKGROUND ==========
+    // Animierter Partikelhintergrund
     function setupParticleBackground() {
         const canvas = document.getElementById('bg');
         const ctx = canvas.getContext('2d');
@@ -90,13 +91,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ========== EVENT LISTENERS ==========
     function setupEventListeners() {
-        // Setup transfer form submission
         setupTransferFormSubmission();
     }
 
-    // ========== NAVIGATION FUNCTIONS ==========
+    // Navigation zwischen Dashboard-Bereichen
     window.showTransferSection = function() {
         hideAllSections();
         document.getElementById('transferSection').style.display = 'block';
@@ -110,10 +109,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.showTransferForm = function() {
-        console.log('Opening transfer form...');
+        console.log('Transfer-Formular wird geöffnet...');
         document.getElementById('transferForm').style.display = 'block';
 
-        // Initialize patient search when form opens
+        // Patientensuche initialisieren wenn Formular geöffnet wird
         setTimeout(() => {
             initializePatientSearch();
         }, 100);
@@ -123,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('transferForm').style.display = 'none';
         document.getElementById('adminTransferForm').reset();
 
-        // Clear search
+        // Suchfelder zurücksetzen
         const searchInput = document.getElementById('transferPatientSearch');
         const hiddenInput = document.getElementById('transferPatientId');
         if (searchInput) searchInput.value = '';
@@ -143,13 +142,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // ========== PATIENT SEARCH ==========
+    // Patientensuche mit Echtzeitfilterung
     function initializePatientSearch() {
-        console.log('Initializing patient search...');
+        console.log('Patientensuche wird initialisiert...');
 
         let patients = [];
 
-        // Load patients when search is initialized
+        // Alle verfügbaren Patienten für Suche laden
         fetch('/api/patients')
             .then(response => {
                 if (!response.ok) {
@@ -170,15 +169,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const resultsContainer = document.getElementById('patientSearchResults');
 
         if (!searchInput || !resultsContainer) {
-            console.log('Search elements not found');
+            console.log('Suchfeldelemente nicht gefunden');
             return;
         }
 
-        // Remove old event listeners by cloning the element
+        // Alte Event-Listener durch Klonen des Elements entfernen
         const newSearchInput = searchInput.cloneNode(true);
         searchInput.parentNode.replaceChild(newSearchInput, searchInput);
 
-        // Search when user types
+        // Suche bei Benutzereingabe
         newSearchInput.addEventListener('input', function(e) {
             const query = e.target.value.trim();
 
@@ -187,32 +186,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Filter patients
+            // Patienten nach Namen filtern
             const filtered = patients.filter(patient => {
                 const fullName = `${patient.vorname} ${patient.nachname}`.toLowerCase();
                 return fullName.includes(query.toLowerCase());
             });
 
-            // Show results
-// Show results - ENHANCED VERSION with current location
+            // Suchergebnisse mit aktuellem Standort anzeigen
             if (filtered.length === 0) {
                 resultsContainer.innerHTML = '<div class="no-results">Keine Patienten gefunden</div>';
             } else {
                 resultsContainer.innerHTML = filtered.map(patient => `
-        <div class="search-result-item" onclick="selectPatient(${patient.id}, '${patient.vorname} ${patient.nachname}')">
-            <div class="patient-name">${patient.vorname} ${patient.nachname}</div>
-            <div class="patient-details">
-                ID: ${patient.id} | 
-                Aktuell: ${patient.standort || 'Unbekannt'}
-            </div>
-        </div>
-    `).join('');
+                    <div class="search-result-item" onclick="selectPatient(${patient.id}, '${patient.vorname} ${patient.nachname}')">
+                        <div class="patient-name">${patient.vorname} ${patient.nachname}</div>
+                        <div class="patient-details">
+                            ID: ${patient.id} | 
+                            Aktuell: ${patient.standort || 'Unbekannt'}
+                        </div>
+                    </div>
+                `).join('');
             }
 
             resultsContainer.style.display = 'block';
         });
 
-        // Hide results when clicking outside
+        // Ergebnisse ausblenden beim Klick außerhalb
         newSearchInput.addEventListener('blur', function() {
             setTimeout(() => {
                 resultsContainer.style.display = 'none';
@@ -220,23 +218,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Global function to select a patient
-// Global function to select a patient - ENHANCED VERSION
-    // Global function to select a patient - ENHANCED VERSION
+    // Patient aus Suchergebnissen auswählen und Standort-Dropdown aktualisieren
     window.selectPatient = async function(id, name) {
         document.getElementById('transferPatientSearch').value = name;
         document.getElementById('transferPatientId').value = id;
         document.getElementById('patientSearchResults').style.display = 'none';
-        console.log('Selected patient:', id, name);
+        console.log('Patient ausgewählt:', id, name);
 
-        // Update location dropdown based on patient's current location
+        // Standort-Dropdown basierend auf aktuellem Patientenstandort aktualisieren
         await updateLocationDropdown(id);
     };
 
-// Add this new function to update the location dropdown
+    // Standort-Dropdown basierend auf aktuellem Patientenstandort anpassen
     async function updateLocationDropdown(patientId) {
         try {
-            // Get patient's current location
+            // Aktuellen Patientenstandort abrufen
             const response = await fetch(`/api/patients/${patientId}/location`);
             if (!response.ok) throw new Error('Failed to get patient location');
 
@@ -246,28 +242,28 @@ document.addEventListener('DOMContentLoaded', () => {
             const locationSelect = document.getElementById('newLocation');
             const options = locationSelect.querySelectorAll('option');
 
-            // Show/hide options based on current location
+            // Optionen basierend auf aktuellem Standort anzeigen/verstecken
             options.forEach(option => {
                 if (option.value === '') {
-                    // Keep the placeholder option
+                    // Platzhalter-Option beibehalten
                     option.style.display = 'block';
                 } else if (option.value === currentLocation) {
-                    // Hide current location
+                    // Aktuellen Standort ausblenden
                     option.style.display = 'none';
                 } else {
-                    // Show other locations
+                    // Andere Standorte anzeigen
                     option.style.display = 'block';
                 }
             });
 
-            // Reset the dropdown to placeholder
+            // Dropdown auf Platzhalter zurücksetzen
             locationSelect.value = '';
 
-            console.log(`Patient is currently in ${currentLocation}, showing other options`);
+            console.log(`Patient ist derzeit in ${currentLocation}, andere Optionen werden angezeigt`);
 
         } catch (error) {
-            console.error('Error updating location dropdown:', error);
-            // If error, show all options
+            console.error('Fehler beim Aktualisieren des Standort-Dropdowns:', error);
+            // Bei Fehler alle Optionen anzeigen
             const locationSelect = document.getElementById('newLocation');
             const options = locationSelect.querySelectorAll('option');
             options.forEach(option => {
@@ -276,23 +272,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ========== FORM SUBMISSION ==========
+    // Transfer-Formular Übermittlung mit Validierung und Admin-Transfer-API
     function setupTransferFormSubmission() {
         const form = document.getElementById('adminTransferForm');
         if (!form) {
-            console.log('Transfer form not found');
+            console.log('Transfer-Formular nicht gefunden');
             return;
         }
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            console.log('Form submitted');
+            console.log('Formular übermittelt');
 
             const patientId = document.getElementById('transferPatientId').value;
             const newLocation = document.getElementById('newLocation').value;
             const reason = document.getElementById('transferReason').value;
 
-            console.log('Form data:', { patientId, newLocation, reason });
+            console.log('Formulardaten:', { patientId, newLocation, reason });
 
             if (!patientId) {
                 showNotification('Bitte wählen Sie einen Patienten aus', 'error');
@@ -333,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error(result.message || 'Transfer failed');
                 }
             } catch (error) {
-                console.error('Transfer error:', error);
+                console.error('Transfer-Fehler:', error);
                 showNotification('Fehler beim Transfer: ' + error.message, 'error');
             } finally {
                 hideLoadingState();
@@ -341,7 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ========== DATA LOADING FUNCTIONS ==========
+    // Dashboard-Daten von Server laden und UI aktualisieren
     async function loadDashboardData() {
         try {
             showLoadingState();
@@ -358,27 +354,28 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
         } catch (error) {
-            console.error('Dashboard loading error:', error);
+            console.error('Dashboard-Ladefehler:', error);
             showNotification('Fehler beim Laden der Dashboard-Daten', 'error');
         } finally {
             hideLoadingState();
         }
     }
 
+    // Dashboard-UI mit Server-Daten aktualisieren
     function updateDashboardUI(dashboard) {
-        // Update admin username
-        // ADD THIS DEBUG CODE RIGHT AT THE START:
-        console.log('🔍 Debug: Dashboard data received:', dashboard);
-        console.log('🔍 Debug: Location statistics:', dashboard.location_statistics);
+        console.log('Dashboard-Daten empfangen:', dashboard);
+        console.log('Standort-Statistiken:', dashboard.location_statistics);
+
         if (dashboard.location_statistics && dashboard.location_statistics.patients) {
-            console.log('🔍 Debug: Patient locations:', dashboard.location_statistics.patients);
+            console.log('Patientenstandorte:', dashboard.location_statistics.patients);
             dashboard.location_statistics.patients.forEach(loc => {
-                console.log(`📍 ${loc.standort}: ${loc.total_patients} patients`);
+                console.log(`${loc.standort}: ${loc.total_patients} Patienten`);
             });
         }
+
         document.getElementById('adminUsername').textContent = currentUser.username || 'Administrator';
 
-        // Update statistics
+        // Statistiken verarbeiten und anzeigen
         if (dashboard.location_statistics) {
             const stats = dashboard.location_statistics;
 
@@ -388,7 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let moenchengladbachPatients = 0;
             let zuhausePatients = 0;
 
-            // Process patient statistics
+            // Patientenstatistiken verarbeiten
             stats.patients.forEach(location => {
                 const count = parseInt(location.total_patients) || 0;
                 totalPatients += count;
@@ -402,12 +399,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // Process pflegekraft statistics
+            // Pflegekraft-Statistiken verarbeiten
             stats.pflegekraefte.forEach(location => {
                 totalPflegekraefte += parseInt(location.total_pflegekraefte) || 0;
             });
 
-            // Update DOM elements
+            // DOM-Elemente aktualisieren
             document.getElementById('totalPatients').textContent = totalPatients;
             document.getElementById('totalPflegekraefte').textContent = totalPflegekraefte;
             document.getElementById('krefeld_patients').textContent = krefeldPatients;
@@ -415,7 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('zuhause_patients').textContent = zuhausePatients;
         }
 
-        // Update recent activities
+        // Aktuelle Aktivitäten anzeigen
         if (dashboard.recent_transfers) {
             const activitiesHtml = dashboard.recent_transfers.length === 0
                 ? '<div class="activity-item"><div class="activity-icon">📝</div><div class="activity-content"><span>Keine aktuellen Transfers</span></div></div>'
@@ -432,7 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('recentActivities').innerHTML = activitiesHtml;
         }
 
-        // Update workload alerts
+        // Arbeitsbelastungs-Warnungen anzeigen
         if (dashboard.workload_alerts) {
             const alertsHtml = dashboard.workload_alerts.length === 0
                 ? '<div class="alert-item">✅ Alle Pflegekräfte haben normale Arbeitsbelastung</div>'
@@ -446,24 +443,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ========== TRANSFER MANAGEMENT ==========
+    // Transfer-Daten laden (Anfragen und Historie)
     async function loadTransferData() {
         try {
-            // Load recent transfers
+            // Kürzliche Transfers laden
             const transfersResponse = await fetch('/api/admin/transfers/recent');
             if (transfersResponse.ok) {
                 const transfersData = await transfersResponse.json();
                 updateRecentTransfersTable(transfersData.transfers || []);
             }
 
-            // Load pending requests
+            // Offene Anfragen laden
             const requestsResponse = await fetch('/api/admin/transfers/requests');
             if (requestsResponse.ok) {
                 const requestsData = await requestsResponse.json();
                 updateTransferRequestsTable(requestsData.requests || []);
             }
         } catch (error) {
-            console.error('Transfer data loading error:', error);
+            console.error('Transfer-Daten Ladefehler:', error);
         }
     }
 
@@ -526,7 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `).join('');
     }
 
-    // ========== DETAILED STATISTICS ==========
+    // Detaillierte Statistiken für Statistik-Sektion laden
     async function loadDetailedStatistics() {
         try {
             const response = await fetch('/api/admin/statistics/detailed');
@@ -539,7 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateWorkloadStatistics(data.statistics.workload);
             }
         } catch (error) {
-            console.error('Detailed statistics error:', error);
+            console.error('Detaillierte Statistiken Fehler:', error);
             showNotification('Fehler beim Laden der Statistiken', 'error');
         }
     }
@@ -590,7 +587,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join('');
     }
 
-    // ========== UTILITY FUNCTIONS ==========
+    // Hilfsfunktionen für UI-Zustand
     function showLoadingState() {
         document.querySelectorAll('.stat-card p').forEach(el => {
             if (el.textContent === '—') {
@@ -628,12 +625,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ========== AUTO REFRESH ==========
+    // Automatische Aktualisierung einrichten
     function setupAutoRefresh() {
+        // Dashboard alle 2 Minuten aktualisieren
         setInterval(async () => {
             await loadDashboardData();
         }, 120000);
 
+        // Transfer-Daten jede Minute aktualisieren (nur wenn Transfer-Sektion sichtbar)
         setInterval(async () => {
             const transferSection = document.getElementById('transferSection');
             if (transferSection.style.display !== 'none') {
@@ -642,7 +641,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 60000);
     }
 
-    // ========== GLOBAL FUNCTIONS ==========
+    // Globale Funktionen für Transfer-Anfragen-Verwaltung
     window.approveTransferRequest = async function(requestId) {
         if (!confirm('Möchten Sie diese Transfer-Anfrage genehmigen?')) return;
 
@@ -663,7 +662,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(result.message);
             }
         } catch (error) {
-            console.error('Approval error:', error);
+            console.error('Genehmigungsfehler:', error);
             showNotification('Fehler bei der Genehmigung: ' + error.message, 'error');
         }
     };
@@ -691,24 +690,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(result.message);
             }
         } catch (error) {
-            console.error('Rejection error:', error);
+            console.error('Ablehnungsfehler:', error);
             showNotification('Fehler bei der Ablehnung: ' + error.message, 'error');
         }
     };
 
-    console.log('✅ Admin Dashboard fully initialized');
+    console.log('Admin Dashboard vollständig initialisiert');
 });
 
-// Add this to your dashboard JavaScript files (both Pflegekraft and Admin)
-
-// Enhanced notification system for critical health alerts
+// Erweiterte kritische Gesundheitsalarme für Dashboard
 function setupCriticalAlertMonitoring() {
-    // Check for critical alerts every 30 seconds
+    // Alle 30 Sekunden auf kritische Alarme prüfen
     setInterval(async () => {
         await checkForCriticalAlerts();
     }, 30000);
 
-    // Check immediately on page load
+    // Sofort beim Seitenladen prüfen
     checkForCriticalAlerts();
 }
 
@@ -720,7 +717,7 @@ async function checkForCriticalAlerts() {
 
         if (!userId) return;
 
-        // Get unread critical notifications
+        // Ungelesene kritische Benachrichtigungen abrufen
         const response = await fetch(`/api/notifications/critical/${userId}?userType=${userType}`);
 
         if (!response.ok) return;
@@ -732,12 +729,12 @@ async function checkForCriticalAlerts() {
         }
 
     } catch (error) {
-        console.error('Critical alert check error:', error);
+        console.error('Kritische Alarm-Prüfung Fehler:', error);
     }
 }
 
 function displayCriticalAlerts(alerts) {
-    // Remove existing critical alert banner
+    // Existierendes kritisches Alarm-Banner entfernen
     const existingBanner = document.querySelector('.critical-alert-banner');
     if (existingBanner) {
         existingBanner.remove();
@@ -745,7 +742,7 @@ function displayCriticalAlerts(alerts) {
 
     if (alerts.length === 0) return;
 
-    // Create critical alert banner
+    // Kritisches Alarm-Banner erstellen
     const banner = document.createElement('div');
     banner.className = 'critical-alert-banner';
     banner.innerHTML = `
@@ -771,13 +768,13 @@ function displayCriticalAlerts(alerts) {
         </div>
     `;
 
-    // Insert at top of page
+    // Am oberen Rand der Seite einfügen
     document.body.insertBefore(banner, document.body.firstChild);
 
-    // Store alerts for detail view
+    // Alarme für Detailansicht speichern
     window.currentCriticalAlerts = alerts;
 
-    // Auto-remove after 2 minutes if not interacted with
+    // Automatisch nach 2 Minuten entfernen wenn nicht interagiert
     setTimeout(() => {
         if (banner.parentElement) {
             banner.remove();
@@ -790,7 +787,7 @@ function showCriticalAlertDetails() {
 
     if (alerts.length === 0) return;
 
-    // Create modal with alert details
+    // Modal mit Alarm-Details erstellen
     const modal = document.createElement('div');
     modal.className = 'critical-alert-modal';
     modal.innerHTML = `
@@ -833,9 +830,9 @@ function showCriticalAlertDetails() {
     document.body.appendChild(modal);
 }
 
+// Einzelnen Alarm als gelesen markieren
 async function acknowledgeAlert(alertId) {
     try {
-        // Show loading state on button
         const button = event.target;
         const originalText = button.innerHTML;
         button.innerHTML = '<span class="loading-spinner"></span>Wird verarbeitet...';
@@ -846,10 +843,9 @@ async function acknowledgeAlert(alertId) {
         });
 
         if (response.ok) {
-            // Find and remove the specific alert item with animation
+            // Spezifisches Alarm-Element mit Animation entfernen
             const alertItem = button.closest('.critical-alert-item');
             if (alertItem) {
-                // Add dismissal animation
                 alertItem.style.transition = 'all 0.3s ease';
                 alertItem.style.opacity = '0';
                 alertItem.style.transform = 'translateX(100%)';
@@ -857,10 +853,10 @@ async function acknowledgeAlert(alertId) {
                 setTimeout(() => {
                     alertItem.remove();
 
-                    // Check if this was the last alert in the modal
+                    // Prüfen ob das der letzte Alarm im Modal war
                     const remainingAlerts = document.querySelectorAll('.critical-alert-item');
                     if (remainingAlerts.length === 0) {
-                        // Close modal and remove banner if no alerts left
+                        // Modal und Banner schließen wenn keine Alarme übrig
                         const modal = document.querySelector('.critical-alert-modal');
                         const banner = document.querySelector('.critical-alert-banner');
 
@@ -876,14 +872,12 @@ async function acknowledgeAlert(alertId) {
                         showNotification('✅ Alle kritischen Alarme bearbeitet!', 'success');
                     } else {
                         showNotification('✅ Alarm als gesehen markiert', 'success');
-
-                        // Update banner count
                         updateBannerAlertCount();
                     }
                 }, 300);
             }
 
-            // Remove this alert from our stored alerts
+            // Diesen Alarm aus gespeicherten Alarmen entfernen
             if (window.currentCriticalAlerts) {
                 window.currentCriticalAlerts = window.currentCriticalAlerts.filter(
                     alert => alert.id !== alertId
@@ -894,9 +888,9 @@ async function acknowledgeAlert(alertId) {
             throw new Error('Server returned error');
         }
     } catch (error) {
-        console.error('Error acknowledging alert:', error);
+        console.error('Fehler beim Markieren des Alarms:', error);
 
-        // Restore button state
+        // Button-Zustand wiederherstellen
         button.innerHTML = originalText;
         button.disabled = false;
 
@@ -916,6 +910,7 @@ function updateBannerAlertCount() {
     }
 }
 
+// Alle Alarme als gelesen markieren
 async function acknowledgeAllAlerts() {
     const button = event.target;
     const originalText = button.innerHTML;
@@ -927,7 +922,7 @@ async function acknowledgeAllAlerts() {
         const currentAlerts = window.currentCriticalAlerts || [];
         const alertIds = currentAlerts.map(alert => alert.id);
 
-        // Process all alerts
+        // Alle Alarme verarbeiten
         const promises = alertIds.map(alertId =>
             fetch(`/api/notifications/${alertId}/read`, { method: 'PUT' })
         );
@@ -936,23 +931,23 @@ async function acknowledgeAllAlerts() {
         const successCount = results.filter(r => r.ok).length;
 
         if (successCount === alertIds.length) {
-            // All successful - close everything
+            // Alle erfolgreich - alles schließen
             const modal = document.querySelector('.critical-alert-modal');
             const banner = document.querySelector('.critical-alert-banner');
 
-            // Animate modal closure
+            // Modal-Schließung animieren
             if (modal) {
                 modal.style.opacity = '0';
                 setTimeout(() => modal.remove(), 300);
             }
 
-            // Animate banner removal
+            // Banner-Entfernung animieren
             if (banner) {
                 banner.style.opacity = '0';
                 setTimeout(() => banner.remove(), 300);
             }
 
-            // Clear stored alerts
+            // Gespeicherte Alarme löschen
             window.currentCriticalAlerts = [];
 
             showNotification(`✅ Alle ${successCount} Alarme erfolgreich bearbeitet!`, 'success');
@@ -962,7 +957,7 @@ async function acknowledgeAllAlerts() {
         }
 
     } catch (error) {
-        console.error('Error acknowledging all alerts:', error);
+        console.error('Fehler beim Bearbeiten aller Alarme:', error);
         button.innerHTML = originalText;
         button.disabled = false;
         showNotification('❌ Fehler beim Bearbeiten aller Alarme: ' + error.message, 'error');
@@ -985,7 +980,7 @@ async function acknowledgeAllAlertsFromBanner() {
             return;
         }
 
-        // Process all alerts
+        // Alle Alarme verarbeiten
         const promises = alertIds.map(alertId =>
             fetch(`/api/notifications/${alertId}/read`, { method: 'PUT' })
         );
@@ -994,7 +989,7 @@ async function acknowledgeAllAlertsFromBanner() {
         const successCount = results.filter(r => r.ok).length;
 
         if (successCount === alertIds.length) {
-            // Remove banner with animation
+            // Banner mit Animation entfernen
             const banner = document.querySelector('.critical-alert-banner');
             if (banner) {
                 banner.style.opacity = '0';
@@ -1002,7 +997,7 @@ async function acknowledgeAllAlertsFromBanner() {
                 setTimeout(() => banner.remove(), 300);
             }
 
-            // Clear stored alerts
+            // Gespeicherte Alarme löschen
             window.currentCriticalAlerts = [];
 
             showNotification(`🎉 Perfekt! Alle ${successCount} Alarme erledigt!`, 'success');
@@ -1012,7 +1007,7 @@ async function acknowledgeAllAlertsFromBanner() {
         }
 
     } catch (error) {
-        console.error('Error acknowledging all alerts from banner:', error);
+        console.error('Fehler beim Bearbeiten aller Alarme vom Banner:', error);
         button.innerHTML = originalText;
         button.disabled = false;
         showNotification('❌ Fehler: ' + error.message, 'error');
@@ -1020,16 +1015,16 @@ async function acknowledgeAllAlertsFromBanner() {
 }
 
 function viewPatientDetails(patientId) {
-    // Redirect to patient view or open patient details
+    // Zu Patientenansicht weiterleiten oder Patientendetails öffnen
     if (window.currentUser && window.currentUser.type === 'mitarbeiter') {
-        // For staff - could redirect to patient management
+        // Für Personal - könnte zu Patientenverwaltung weiterleiten
         window.location.href = `/admin?patient=${patientId}`;
     } else {
-        showNotification('Patient-Details öffnen...', 'info');
+        showNotification('Patientendetails öffnen...', 'info');
     }
 }
 
-// Add CSS for critical alerts
+// CSS für kritische Alarme hinzufügen
 function injectCriticalAlertCSS() {
     const style = document.createElement('style');
     style.textContent = `
@@ -1262,7 +1257,12 @@ function injectCriticalAlertCSS() {
             75% { transform: translateX(2px); }
         }
 
-        /* Adjust main content when critical banner is shown */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Hauptinhalt anpassen wenn kritisches Banner angezeigt wird */
         body:has(.critical-alert-banner) .main {
             margin-top: calc(3.5rem + 80px);
         }
@@ -1300,7 +1300,7 @@ function injectCriticalAlertCSS() {
     document.head.appendChild(style);
 }
 
-// Initialize critical alert system
+// Kritisches Alarmsystem initialisieren
 document.addEventListener('DOMContentLoaded', () => {
     injectCriticalAlertCSS();
     setupCriticalAlertMonitoring();
