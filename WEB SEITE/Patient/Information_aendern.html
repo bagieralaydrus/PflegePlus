@@ -8,54 +8,54 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body>
-  <canvas id="bg"></canvas>
+<canvas id="bg"></canvas>
 
-  <header class="header">
-    <div class="header-container">
-      <div class="logo">PflegeVision</div>
-      <nav class="nav">
-        <a href="dashboard_patient.html">Dashboard</a>
-        <a href="Information_aendern.html">Information ändern</a>
-      </nav>
-    </div>
-  </header>
+<header class="header">
+  <div class="header-container">
+    <div class="logo">PflegeVision</div>
+    <nav class="nav">
+      <a href="dashboard_patient.html">Dashboard</a>
+      <a href="Information_aendern.html">Information ändern</a>
+    </nav>
+  </div>
+</header>
 
-  <main class="main">
-    <div class="modern-card">
-      <h1>Informationen ändern</h1>
+<main class="main">
+  <div class="modern-card">
+    <h1>Informationen ändern</h1>
 
-      <form id="updateForm" class="modern-form">
-        <div class="form-group">
-          <label for="relative">Angehörige</label>
-          <textarea id="relative" name="relative" placeholder="Name, Adresse und Telefonnummer eingeben" required></textarea>
-        </div>
+    <form id="updateForm" class="modern-form">
+      <div class="form-group">
+        <label for="relative">Angehörige</label>
+        <textarea id="relative" name="relative" placeholder="Name, Adresse und Telefonnummer eingeben" required></textarea>
+      </div>
 
-        <div class="form-group">
-          <label for="location">Standort</label>
-          <select id="location" name="location" required>
-            <option value="Krefeld">Krefeld</option>
-            <option value="Mönchengladbach">Mönchengladbach</option>
-            <option value="Zuhause">Zuhause</option>
-          </select>
-        </div>
+      <div class="form-group">
+        <label for="location">Standort</label>
+        <select id="location" name="location" required>
+          <option value="Krefeld">Krefeld</option>
+          <option value="Mönchengladbach">Mönchengladbach</option>
+          <option value="Zuhause">Zuhause</option>
+        </select>
+      </div>
 
-        <button type="submit" class="btn-primary">Speichern</button>
-      </form>
-    </div>
+      <button type="submit" class="btn-primary">Speichern</button>
+    </form>
+  </div>
 
-    <div class="modern-card danger-card">
-      <h2>⚠ Konto löschen</h2>
-      <p>
-        Achtung: Das Löschen des Kontos ist endgültig und kann nicht rückgängig gemacht werden.
-      </p>
-      <button id="deleteAccountBtn" class="btn-danger">Konto löschen</button>
-    </div>
-  </main>
+  <div class="modern-card danger-card">
+    <h2>⚠ Konto löschen</h2>
+    <p>
+      Achtung: Das Löschen des Kontos ist endgültig und kann nicht rückgängig gemacht werden.
+    </p>
+    <button id="deleteAccountBtn" class="btn-danger">Konto löschen</button>
+  </div>
+</main>
 
-  <footer class="footer">
-    <p>&copy; 2025 PflegeVision. Alle Rechte vorbehalten.</p>
-  </footer>
+<footer class="footer">
+  <p>&copy; 2025 PflegeVision. Alle Rechte vorbehalten.</p>
+</footer>
 
-  <script src="information_aendern.js"></script>
+<script src="information_aendern.js"></script>
 </body>
 </html>
