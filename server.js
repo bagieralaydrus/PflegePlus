@@ -3147,3 +3147,487 @@ app.post('/api/admin/patients/bulk-assign', async (req, res) => {
         });
     }
 });
+
+// Add these endpoints to your server.js file
+
+// Get Pflegekräfte by location for manual selection
+app.get('/api/admin/pflegekraefte/by-location/:location', async (req, res) => {
+    const { location } = req.params;
+
+    try {
+        const pflegekraefteQuery = `
+            SELECT 
+                m.id,
+                m.vorname,
+                m.nachname,
+                m.benutzername,
+                m.standort,
+                COALESCE(m.vorname || ' ' || m.nachname, m.benutzername) as name,
+                COUNT(pz.patient_id) as current_patients
+            FROM mitarbeiter m
+            LEFT JOIN patient_zuweisung pz ON m.id = pz.mitarbeiter_id AND pz.status = 'active'
+            WHERE m.rolle = 'pflegekraft' 
+              AND m.status = 'active'
+              AND m.standort = $1
+            GROUP BY m.id, m.vorname, m.nachname, m.benutzername, m.standort
+            ORDER BY current_patients ASC, m.nachname, m.vorname
+        `;
+
+        const result = await pool.query(pflegekraefteQuery, [location]);
+
+        res.json({
+            success: true,
+            location: location,
+            pflegekraefte: result.rows
+        });
+
+    } catch (error) {
+        console.error('Pflegekräfte by location error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler beim Laden der Pflegekräfte: ' + error.message
+        });
+    }
+});
+
+// Update patient registration to handle manual Pflegekraft assignment
+app.post('/api/admin/patients/register', async (req, res) => {
+    const { adminId, benutzername, assignmentMode, manualPflegekraftId, ...patientData } = req.body;
+
+    // Validate required fields
+    const requiredFields = ['vorname', 'nachname', 'geburtsdatum', 'standort'];
+    const missingFields = requiredFields.filter(field => !patientData[field]);
+
+    if (missingFields.length > 0) {
+        return res.status(400).json({
+            success: false,
+            message: `Fehlende Pflichtfelder: ${missingFields.join(', ')}`
+        });
+    }
+
+    try {
+        await pool.query('BEGIN');
+
+        // Check if username already exists and make it unique
+        let finalUsername = benutzername;
+        let counter = 1;
+
+        while (true) {
+            const usernameCheck = await pool.query(
+                'SELECT id FROM patienten WHERE benutzername = $1 UNION SELECT id FROM mitarbeiter WHERE benutzername = $1',
+                [finalUsername]
+            );
+
+            if (usernameCheck.rows.length === 0) break;
+
+            finalUsername = `${benutzername}${counter}`;
+            counter++;
+        }
+
+        // Generate default values for missing optional fields
+        const defaults = generatePatientDefaults(patientData);
+
+        // Combine provided data with defaults
+        const completePatientData = {
+            ...defaults,
+            ...patientData, // User provided data overrides defaults
+            benutzername: finalUsername
+        };
+
+        console.log('Registering new patient:', {
+            name: `${completePatientData.vorname} ${completePatientData.nachname}`,
+            standort: completePatientData.standort,
+            username: finalUsername,
+            assignmentMode: assignmentMode
+        });
+
+        // Insert patient into database
+        const insertPatientQuery = `
+            INSERT INTO patienten (
+                vorname, nachname, benutzername, geburtsdatum, adresse, telefon,
+                notfallkontakt, gesundheitszustand, medikamente, allergien,
+                zimmer_nummer, standort, aufnahmedatum, status
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            RETURNING *
+        `;
+
+        const patientResult = await pool.query(insertPatientQuery, [
+            completePatientData.vorname,
+            completePatientData.nachname,
+            completePatientData.benutzername,
+            completePatientData.geburtsdatum,
+            completePatientData.adresse,
+            completePatientData.telefon,
+            completePatientData.notfallkontakt,
+            completePatientData.gesundheitszustand,
+            completePatientData.medikamente,
+            completePatientData.allergien,
+            completePatientData.zimmer_nummer,
+            completePatientData.standort,
+            completePatientData.aufnahmedatum,
+            completePatientData.status
+        ]);
+
+        const newPatient = patientResult.rows[0];
+        console.log('Patient registered with ID:', newPatient.id);
+
+        // Handle assignment based on mode
+        let assignmentMessage = '';
+        let limitReached = false;
+
+        if (assignmentMode === 'manual' && manualPflegekraftId) {
+            // Manual assignment to specific Pflegekraft
+            console.log('Attempting manual assignment to Pflegekraft ID:', manualPflegekraftId);
+
+            // Check if the selected Pflegekraft can take more patients
+            const pflegekraftCapacityQuery = `
+                SELECT 
+                    m.id,
+                    m.vorname || ' ' || m.nachname as name,
+                    COUNT(pz.patient_id) as current_patients
+                FROM mitarbeiter m
+                LEFT JOIN patient_zuweisung pz ON m.id = pz.mitarbeiter_id AND pz.status = 'active'
+                WHERE m.id = $1
+                GROUP BY m.id, m.vorname, m.nachname
+            `;
+
+            const pflegekraftResult = await pool.query(pflegekraftCapacityQuery, [manualPflegekraftId]);
+
+            if (pflegekraftResult.rows.length === 0) {
+                throw new Error('Ausgewählte Pflegekraft nicht gefunden');
+            }
+
+            const pflegekraft = pflegekraftResult.rows[0];
+            console.log(`Selected Pflegekraft: ${pflegekraft.name}, current patients: ${pflegekraft.current_patients}`);
+
+            if (pflegekraft.current_patients >= 24) {
+                // 24-patient limit reached - register patient but don't assign
+                console.log('🚨 24-PATIENT LIMIT REACHED! Cannot assign to selected Pflegekraft');
+
+                limitReached = true;
+                assignmentMessage = `⚠️ LIMIT ERREICHT: ${pflegekraft.name} hat bereits 24 Patienten - Patient ohne Zuweisung registriert`;
+
+                // Notify administrators about the limit being reached
+                await pool.query(
+                    'INSERT INTO benachrichtigungen (patient_id, typ, titel, nachricht, prioritaet, erstellt_am) VALUES ($1, $2, $3, $4, $5, NOW())',
+                    [
+                        newPatient.id,
+                        'admin_alert',
+                        '🚨 24-Patienten-Limit erreicht',
+                        `Patient ${newPatient.vorname} ${newPatient.nachname} konnte nicht ${pflegekraft.name} zugewiesen werden - 24-Patienten-Limit erreicht! Manuelle Neuzuweisung erforderlich.`,
+                        'high'
+                    ]
+                );
+
+                // Notify the Pflegekraft about the attempted assignment
+                await pool.query(
+                    'INSERT INTO benachrichtigungen (patient_id, mitarbeiter_id, typ, titel, nachricht, prioritaet, erstellt_am) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
+                    [
+                        newPatient.id,
+                        manualPflegekraftId,
+                        'assignment_limit_reached',
+                        '⚠️ Zuweisungs-Limit erreicht',
+                        `Ein neuer Patient (${newPatient.vorname} ${newPatient.nachname}) sollte Ihnen zugewiesen werden, aber Sie haben bereits 24 Patienten. Der Patient wurde ohne Zuweisung registriert.`,
+                        'normal'
+                    ]
+                );
+
+            } else {
+                // Assignment possible - create assignment
+                const assignmentQuery = `
+                    INSERT INTO patient_zuweisung (patient_id, mitarbeiter_id, status, zuweisung_datum)
+                    VALUES ($1, $2, 'active', NOW())
+                    ON CONFLICT (patient_id) 
+                    DO UPDATE SET 
+                        mitarbeiter_id = EXCLUDED.mitarbeiter_id,
+                        zuweisung_datum = EXCLUDED.zuweisung_datum,
+                        status = EXCLUDED.status,
+                        updated_at = NOW()
+                    RETURNING *
+                `;
+
+                await pool.query(assignmentQuery, [newPatient.id, manualPflegekraftId]);
+
+                console.log('Manual assignment successful');
+                assignmentMessage = `✅ Manuell ${pflegekraft.name} zugewiesen (${pflegekraft.current_patients + 1}/24 Patienten)`;
+
+                // Notify the assigned Pflegekraft
+                await pool.query(
+                    'INSERT INTO benachrichtigungen (patient_id, mitarbeiter_id, typ, titel, nachricht, prioritaet, erstellt_am) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
+                    [
+                        newPatient.id,
+                        manualPflegekraftId,
+                        'new_patient_assignment',
+                        'Neuer Patient zugewiesen',
+                        `${newPatient.vorname} ${newPatient.nachname} wurde Ihnen manuell zugewiesen. Standort: ${newPatient.standort}, Zimmer: ${newPatient.zimmer_nummer}`,
+                        'normal'
+                    ]
+                );
+            }
+
+        } else {
+            // Automatic assignment (original logic)
+            const availablePflegekraftQuery = `
+                SELECT 
+                    m.id,
+                    m.vorname || ' ' || m.nachname as name,
+                    COUNT(pz.patient_id) as current_patients
+                FROM mitarbeiter m
+                LEFT JOIN patient_zuweisung pz ON m.id = pz.mitarbeiter_id AND pz.status = 'active'
+                WHERE m.rolle = 'pflegekraft' 
+                  AND m.status = 'active'
+                  AND m.standort = $1
+                GROUP BY m.id, m.vorname, m.nachname
+                HAVING COUNT(pz.patient_id) < 24
+                ORDER BY COUNT(pz.patient_id) ASC, m.id ASC
+                LIMIT 1
+            `;
+
+            const pflegekraftResult = await pool.query(availablePflegekraftQuery, [completePatientData.standort]);
+
+            if (pflegekraftResult.rows.length > 0) {
+                const pflegekraft = pflegekraftResult.rows[0];
+
+                // Create assignment
+                const assignmentQuery = `
+                    INSERT INTO patient_zuweisung (patient_id, mitarbeiter_id, status, zuweisung_datum)
+                    VALUES ($1, $2, 'active', NOW())
+                    ON CONFLICT (patient_id) 
+                    DO UPDATE SET 
+                        mitarbeiter_id = EXCLUDED.mitarbeiter_id,
+                        zuweisung_datum = EXCLUDED.zuweisung_datum,
+                        status = EXCLUDED.status,
+                        updated_at = NOW()
+                    RETURNING *
+                `;
+
+                await pool.query(assignmentQuery, [newPatient.id, pflegekraft.id]);
+
+                console.log('Automatic assignment successful to:', pflegekraft.name);
+                assignmentMessage = `Automatisch ${pflegekraft.name} zugewiesen (${pflegekraft.current_patients + 1}/24 Patienten)`;
+
+                // Notify the assigned Pflegekraft
+                await pool.query(
+                    'INSERT INTO benachrichtigungen (patient_id, mitarbeiter_id, typ, titel, nachricht, prioritaet, erstellt_am) VALUES ($1, $2, $3, $4, $5, $6, NOW())',
+                    [
+                        newPatient.id,
+                        pflegekraft.id,
+                        'new_patient_assignment',
+                        'Neuer Patient zugewiesen',
+                        `${newPatient.vorname} ${newPatient.nachname} wurde Ihnen automatisch zugewiesen. Standort: ${newPatient.standort}, Zimmer: ${newPatient.zimmer_nummer}`,
+                        'normal'
+                    ]
+                );
+
+            } else {
+                console.log('No available Pflegekraft at', completePatientData.standort);
+                assignmentMessage = `⚠️ Alle Pflegekräfte am Standort ${completePatientData.standort} haben 24 Patienten - manuelle Zuweisung erforderlich`;
+
+                // Notify administrators about unassigned patient
+                await pool.query(
+                    'INSERT INTO benachrichtigungen (patient_id, typ, titel, nachricht, prioritaet, erstellt_am) VALUES ($1, $2, $3, $4, $5, NOW())',
+                    [
+                        newPatient.id,
+                        'admin_alert',
+                        'Patient ohne Pflegekraft',
+                        `Neuer Patient ${newPatient.vorname} ${newPatient.nachname} wurde registriert, aber alle Pflegekräfte am Standort ${completePatientData.standort} haben bereits 24 Patienten. Manuelle Zuweisung erforderlich.`,
+                        'high'
+                    ]
+                );
+            }
+        }
+
+        await pool.query('COMMIT');
+
+        console.log(`Patient registration completed: ${newPatient.vorname} ${newPatient.nachname} (ID: ${newPatient.id})`);
+        console.log(`Assignment result: ${assignmentMessage}`);
+
+        res.json({
+            success: true,
+            message: 'Patient erfolgreich registriert',
+            patient: newPatient,
+            assignmentMessage: assignmentMessage,
+            limitReached: limitReached,
+            loginCredentials: {
+                username: finalUsername,
+                birthdate: completePatientData.geburtsdatum
+            }
+        });
+
+    } catch (error) {
+        await pool.query('ROLLBACK');
+        console.error('Patient registration error:', error);
+
+        if (error.code === '23505') { // Unique constraint violation
+            res.status(400).json({
+                success: false,
+                message: 'Ein Patient mit diesen Daten existiert bereits'
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: 'Fehler bei der Registrierung: ' + error.message
+            });
+        }
+    }
+});
+
+// Test endpoint to artificially set a Pflegekraft to 24 patients
+app.post('/api/test/set-pflegekraft-to-limit', async (req, res) => {
+    const { pflegekraftId, targetPatientCount = 24 } = req.body;
+
+    if (!pflegekraftId) {
+        return res.status(400).json({
+            success: false,
+            message: 'pflegekraftId is required'
+        });
+    }
+
+    try {
+        await pool.query('BEGIN');
+
+        // First, get current assignments for this Pflegekraft
+        const currentAssignmentsQuery = `
+            SELECT 
+                pz.patient_id,
+                p.vorname || ' ' || p.nachname as patient_name
+            FROM patient_zuweisung pz
+            JOIN patienten p ON pz.patient_id = p.id
+            WHERE pz.mitarbeiter_id = $1 AND pz.status = 'active'
+        `;
+
+        const currentAssignments = await pool.query(currentAssignmentsQuery, [pflegekraftId]);
+        const currentCount = currentAssignments.rows.length;
+
+        console.log(`Pflegekraft ${pflegekraftId} currently has ${currentCount} patients`);
+
+        if (currentCount >= targetPatientCount) {
+            await pool.query('ROLLBACK');
+            return res.json({
+                success: true,
+                message: `Pflegekraft hat bereits ${currentCount} Patienten (Ziel: ${targetPatientCount})`,
+                currentPatientCount: currentCount,
+                targetReached: true
+            });
+        }
+
+        // Get available patients that are not assigned or assigned to other Pflegekräfte
+        const availablePatientsQuery = `
+            SELECT 
+                p.id,
+                p.vorname || ' ' || p.nachname as name,
+                p.standort
+            FROM patienten p
+            LEFT JOIN patient_zuweisung pz ON p.id = pz.patient_id AND pz.status = 'active'
+            WHERE p.status = 'active' 
+              AND (pz.id IS NULL OR pz.mitarbeiter_id != $1)
+            ORDER BY p.id
+            LIMIT $2
+        `;
+
+        const patientsNeeded = targetPatientCount - currentCount;
+        const availablePatients = await pool.query(availablePatientsQuery, [pflegekraftId, patientsNeeded]);
+
+        if (availablePatients.rows.length < patientsNeeded) {
+            await pool.query('ROLLBACK');
+            return res.status(400).json({
+                success: false,
+                message: `Nicht genügend verfügbare Patienten. Benötigt: ${patientsNeeded}, Verfügbar: ${availablePatients.rows.length}`
+            });
+        }
+
+        // Assign the required number of patients
+        const assignedPatients = [];
+
+        for (const patient of availablePatients.rows) {
+            // Remove any existing assignment
+            await pool.query(
+                'UPDATE patient_zuweisung SET status = $1 WHERE patient_id = $2 AND status = $3',
+                ['reassigned', patient.id, 'active']
+            );
+
+            // Create new assignment
+            await pool.query(
+                `INSERT INTO patient_zuweisung (patient_id, mitarbeiter_id, status, zuweisung_datum)
+                 VALUES ($1, $2, 'active', NOW())
+                 ON CONFLICT (patient_id) 
+                 DO UPDATE SET 
+                     mitarbeiter_id = EXCLUDED.mitarbeiter_id,
+                     zuweisung_datum = EXCLUDED.zuweisung_datum,
+                     status = EXCLUDED.status,
+                     updated_at = NOW()`,
+                [patient.id, pflegekraftId]
+            );
+
+            assignedPatients.push(patient);
+        }
+
+        // Get Pflegekraft info
+        const pflegekraftInfo = await pool.query(
+            'SELECT vorname || \' \' || nachname as name, standort FROM mitarbeiter WHERE id = $1',
+            [pflegekraftId]
+        );
+
+        await pool.query('COMMIT');
+
+        console.log(`✅ Test setup complete: Pflegekraft ${pflegekraftId} now has ${targetPatientCount} patients`);
+
+        res.json({
+            success: true,
+            message: `✅ Pflegekraft erfolgreich auf ${targetPatientCount} Patienten gesetzt für Limit-Test`,
+            pflegekraftInfo: pflegekraftInfo.rows[0],
+            previousPatientCount: currentCount,
+            newPatientCount: targetPatientCount,
+            assignedPatients: assignedPatients,
+            readyForLimitTest: true
+        });
+
+    } catch (error) {
+        await pool.query('ROLLBACK');
+        console.error('Test setup error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler beim Test-Setup: ' + error.message
+        });
+    }
+});
+
+// Test endpoint to get Pflegekräfte with their current patient counts for easy testing
+app.get('/api/test/pflegekraefte-for-limit-test', async (req, res) => {
+    try {
+        const pflegekraefteQuery = `
+            SELECT 
+                m.id,
+                m.vorname || ' ' || m.nachname as name,
+                m.standort,
+                COUNT(pz.patient_id) as current_patients,
+                (24 - COUNT(pz.patient_id)) as slots_available,
+                CASE 
+                    WHEN COUNT(pz.patient_id) >= 24 THEN 'AT_LIMIT'
+                    WHEN COUNT(pz.patient_id) >= 20 THEN 'NEAR_LIMIT'
+                    ELSE 'AVAILABLE'
+                END as status
+            FROM mitarbeiter m
+            LEFT JOIN patient_zuweisung pz ON m.id = pz.mitarbeiter_id AND pz.status = 'active'
+            WHERE m.rolle = 'pflegekraft' AND m.status = 'active'
+            GROUP BY m.id, m.vorname, m.nachname, m.standort
+            ORDER BY current_patients DESC, m.standort, m.nachname
+        `;
+
+        const result = await pool.query(pflegekraefteQuery);
+
+        res.json({
+            success: true,
+            pflegekraefte: result.rows,
+            testingSuggestion: "Use /api/test/set-pflegekraft-to-limit with pflegekraftId to set a Pflegekraft to 24 patients for testing"
+        });
+
+    } catch (error) {
+        console.error('Pflegekräfte for testing error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error loading Pflegekräfte for testing: ' + error.message
+        });
+    }
+});

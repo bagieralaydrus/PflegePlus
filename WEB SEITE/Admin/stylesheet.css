@@ -713,3 +713,117 @@ table tr:hover {
         flex-direction: column;
     }
 }
+
+/* ====== Assignment Section Styles ====== */
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.radio-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.radio-option:hover {
+    background-color: rgba(45, 127, 249, 0.05);
+}
+
+.radio-option input[type="radio"] {
+    margin: 0;
+}
+
+.assignment-preview, .assignment-manual {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.assignment-manual .search-container {
+    position: relative;
+}
+
+.assignment-manual .search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.pflegekraft-result-item {
+    padding: 0.75rem;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background-color 0.2s ease;
+}
+
+.pflegekraft-result-item:last-child {
+    border-bottom: none;
+}
+
+.pflegekraft-result-item:hover {
+    background-color: rgba(45, 127, 249, 0.1);
+}
+
+.pflegekraft-result-item.full {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #c82333;
+    cursor: not-allowed;
+}
+
+.pflegekraft-name {
+    font-weight: 600;
+    color: #333;
+}
+
+.pflegekraft-details {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 0.25rem;
+}
+
+.pflegekraft-workload {
+    display: inline-block;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+}
+
+.pflegekraft-workload.low {
+    background: #d4edda;
+    color: #155724;
+}
+
+.pflegekraft-workload.medium {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.pflegekraft-workload.high {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.pflegekraft-workload.full {
+    background: #dc3545;
+    color: white;
+}
