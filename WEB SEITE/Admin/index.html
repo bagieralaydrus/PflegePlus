@@ -413,60 +413,64 @@
                     </div>
                 </div>
 
+                <!-- Assignment Section -->
+                <div class="form-section" id="assignmentSection">
+                    <h4>👨‍⚕️ Pflegekraft-Zuweisung</h4>
+
+                    <!-- Assignment Mode Selection -->
+                    <div class="form-group">
+                        <label>Zuweisungsmodus:</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="assignmentMode" value="automatic" checked>
+                                <span>Automatische Zuweisung (empfohlen)</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="assignmentMode" value="manual">
+                                <span>Manuelle Pflegekraft-Auswahl</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Automatic Assignment Preview -->
+                    <div id="automaticAssignmentPreview" class="assignment-preview">
+                        <div id="availablePflegekraft" class="preview-box">
+                            <span class="loading">Wählen Sie zuerst einen Standort...</span>
+                        </div>
+                    </div>
+
+                    <!-- Manual Pflegekraft Selection -->
+                    <div id="manualPflegekraftSelection" class="assignment-manual" style="display: none;">
+                        <div class="form-group">
+                            <label for="pflegekraftSearch">Pflegekraft suchen:</label>
+                            <div class="search-container">
+                                <input
+                                        type="text"
+                                        id="pflegekraftSearch"
+                                        placeholder="Namen der Pflegekraft eingeben..."
+                                        autocomplete="off"
+                                >
+                                <input type="hidden" id="selectedPflegekraftId" name="selectedPflegekraft">
+                                <div id="pflegekraftSearchResults" class="search-results"></div>
+                            </div>
+                        </div>
+
+                        <div id="selectedPflegekraftInfo" class="preview-box" style="display: none;">
+                            <span>Keine Pflegekraft ausgewählt</span>
+                        </div>
+                    </div>
+                </div>
+
+
                 <div class="form-actions">
                     <button type="button" class="btn-secondary" onclick="hideNewPatientForm()">Abbrechen</button>
                     <button type="submit" class="btn-primary">Patient registrieren</button>
                 </div>
+
+
             </form>
         </div>
 
-        <!-- Assignment Section -->
-        <div class="form-section" id="assignmentSection">
-            <h4>👨‍⚕️ Pflegekraft-Zuweisung</h4>
-
-            <!-- Assignment Mode Selection -->
-            <div class="form-group">
-                <label>Zuweisungsmodus:</label>
-                <div class="radio-group">
-                    <label class="radio-option">
-                        <input type="radio" name="assignmentMode" value="automatic" checked>
-                        <span>Automatische Zuweisung (empfohlen)</span>
-                    </label>
-                    <label class="radio-option">
-                        <input type="radio" name="assignmentMode" value="manual">
-                        <span>Manuelle Pflegekraft-Auswahl</span>
-                    </label>
-                </div>
-            </div>
-
-            <!-- Automatic Assignment Preview -->
-            <div id="automaticAssignmentPreview" class="assignment-preview">
-                <div id="availablePflegekraft" class="preview-box">
-                    <span class="loading">Wählen Sie zuerst einen Standort...</span>
-                </div>
-            </div>
-
-            <!-- Manual Pflegekraft Selection -->
-            <div id="manualPflegekraftSelection" class="assignment-manual" style="display: none;">
-                <div class="form-group">
-                    <label for="pflegekraftSearch">Pflegekraft suchen:</label>
-                    <div class="search-container">
-                        <input
-                                type="text"
-                                id="pflegekraftSearch"
-                                placeholder="Namen der Pflegekraft eingeben..."
-                                autocomplete="off"
-                        >
-                        <input type="hidden" id="selectedPflegekraftId" name="selectedPflegekraft">
-                        <div id="pflegekraftSearchResults" class="search-results"></div>
-                    </div>
-                </div>
-
-                <div id="selectedPflegekraftInfo" class="preview-box" style="display: none;">
-                    <span>Keine Pflegekraft ausgewählt</span>
-                </div>
-            </div>
-        </div>
 
         <!-- Existing Patients List -->
         <div class="modern-card">

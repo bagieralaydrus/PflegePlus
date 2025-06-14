@@ -827,3 +827,117 @@ table tr:hover {
     background: #dc3545;
     color: white;
 }
+
+/* Enhanced search results styling */
+.search-container {
+    position: relative;
+    width: 100%;
+}
+
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.pflegekraft-result-item {
+    padding: 0.75rem;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background-color 0.2s ease;
+}
+
+.pflegekraft-result-item:last-child {
+    border-bottom: none;
+}
+
+.pflegekraft-result-item:hover {
+    background-color: rgba(45, 127, 249, 0.1);
+}
+
+.pflegekraft-result-item.full {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #721c24;
+    cursor: not-allowed;
+}
+
+.pflegekraft-result-item.full:hover {
+    background-color: rgba(220, 53, 69, 0.15);
+}
+
+.pflegekraft-name {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.25rem;
+}
+
+.pflegekraft-details {
+    font-size: 0.8rem;
+    color: #666;
+    line-height: 1.4;
+}
+
+.pflegekraft-workload {
+    display: inline-block;
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-left: 0.5rem;
+}
+
+.pflegekraft-workload.low {
+    background: #d4edda;
+    color: #155724;
+}
+
+.pflegekraft-workload.medium {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.pflegekraft-workload.high {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.pflegekraft-workload.full {
+    background: #dc3545;
+    color: white;
+}
+
+.no-results {
+    padding: 0.75rem;
+    text-align: center;
+    color: #666;
+    font-style: italic;
+}
+
+/* Make sure the search results appear above other elements */
+.assignment-manual {
+    position: relative;
+    z-index: 10;
+}
+
+.preview-box.info {
+    background: #e7f3ff;
+    border-color: #2d7ff9;
+    color: #1e4a72;
+}
+
+.preview-box.error {
+    background: #fff5f5;
+    border-color: #fc8181;
+    color: #c53030;
+}
+
