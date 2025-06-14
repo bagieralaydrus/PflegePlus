@@ -3631,3 +3631,47 @@ app.get('/api/test/pflegekraefte-for-limit-test', async (req, res) => {
         });
     }
 });
+
+app.get('/api/admin/pflegekraefte/by-location/:location', async (req, res) => {
+    const { location } = req.params;
+
+    console.log('🔍 API called for location:', location);
+
+    try {
+        const pflegekraefteQuery = `
+            SELECT 
+                m.id,
+                m.vorname,
+                m.nachname,
+                m.benutzername,
+                m.standort,
+                COALESCE(m.vorname || ' ' || m.nachname, m.benutzername) as name,
+                COUNT(pz.patient_id) as current_patients
+            FROM mitarbeiter m
+            LEFT JOIN patient_zuweisung pz ON m.id = pz.mitarbeiter_id AND pz.status = 'active'
+            WHERE m.rolle = 'pflegekraft' 
+              AND m.status = 'active'
+              AND m.standort = $1
+            GROUP BY m.id, m.vorname, m.nachname, m.benutzername, m.standort
+            ORDER BY current_patients ASC, m.nachname, m.vorname
+        `;
+
+        console.log('🔍 Executing query for location:', location);
+        const result = await pool.query(pflegekraefteQuery, [location]);
+        console.log('🔍 Query result count:', result.rows.length);
+        console.log('🔍 First few results:', result.rows.slice(0, 3));
+
+        res.json({
+            success: true,
+            location: location,
+            pflegekraefte: result.rows
+        });
+
+    } catch (error) {
+        console.error('❌ Pflegekräfte by location error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler beim Laden der Pflegekräfte: ' + error.message
+        });
+    }
+});

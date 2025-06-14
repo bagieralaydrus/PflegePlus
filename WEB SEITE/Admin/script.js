@@ -503,146 +503,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-// Enhanced setup for manual Pflegekraft search
-    function setupManualPflegekraftSearch() {
-        console.log('Setting up manual Pflegekraft search...');
-
-        const searchInput = document.getElementById('pflegekraftSearch');
-        const resultsContainer = document.getElementById('pflegekraftSearchResults');
-
-        if (!searchInput || !resultsContainer) {
-            console.error('Search elements not found');
-            return;
-        }
-
-        // Remove existing event listeners by cloning
-        const newSearchInput = searchInput.cloneNode(true);
-        searchInput.parentNode.replaceChild(newSearchInput, searchInput);
-
-        // Initialize empty data
-        window.currentPflegekraefteData = window.currentPflegekraefteData || [];
-
-        // Add input event listener for real-time search
-        newSearchInput.addEventListener('input', function(e) {
-            const query = e.target.value.trim();
-
-            console.log('Search query:', query);
-
-            if (query.length < 2) {
-                resultsContainer.style.display = 'none';
-                return;
-            }
-
-            const pflegekraefte = window.currentPflegekraefteData || [];
-            console.log('Available Pflegekräfte for search:', pflegekraefte.length);
-
-            // Filter Pflegekräfte by name or username
-            const filtered = pflegekraefte.filter(pf => {
-                const fullName = `${pf.vorname || ''} ${pf.nachname || ''}`.toLowerCase();
-                const username = (pf.benutzername || '').toLowerCase();
-                const searchName = (pf.name || '').toLowerCase();
-
-                return fullName.includes(query.toLowerCase()) ||
-                    username.includes(query.toLowerCase()) ||
-                    searchName.includes(query.toLowerCase());
-            });
-
-            console.log('Filtered results:', filtered.length);
-
-            // Display results
-            if (filtered.length === 0) {
-                resultsContainer.innerHTML = '<div class="no-results">Keine Pflegekräfte gefunden</div>';
-            } else {
-                resultsContainer.innerHTML = filtered.map(pf => {
-                    const workloadClass = getWorkloadClass(pf.current_patients);
-                    const isAtLimit = pf.current_patients >= 24;
-                    const displayName = pf.name || `${pf.vorname || ''} ${pf.nachname || ''}`.trim() || pf.benutzername;
-
-                    return `
-                    <div class="pflegekraft-result-item ${isAtLimit ? 'full' : ''}" 
-                         onclick="${isAtLimit ? '' : `selectPflegekraft(${pf.id}, '${displayName.replace(/'/g, "\\'")}', ${pf.current_patients})`}">
-                        <div class="pflegekraft-name">${displayName}</div>
-                        <div class="pflegekraft-details">
-                            Standort: ${pf.standort || 'Unbekannt'} | 
-                            ID: ${pf.id}
-                            <span class="pflegekraft-workload ${workloadClass}">
-                                ${pf.current_patients}/24 Patienten
-                            </span>
-                            ${isAtLimit ? '<br><strong>⚠️ LIMIT ERREICHT - Keine Zuweisung möglich</strong>' : ''}
-                        </div>
-                    </div>
-                `;
-                }).join('');
-            }
-
-            resultsContainer.style.display = 'block';
-        });
-
-        // Hide results when clicking outside
-        newSearchInput.addEventListener('blur', function() {
-            setTimeout(() => {
-                resultsContainer.style.display = 'none';
-            }, 200);
-        });
-
-        // Show results again when focusing (if there's content)
-        newSearchInput.addEventListener('focus', function() {
-            if (this.value.length >= 2 && resultsContainer.innerHTML.trim()) {
-                resultsContainer.style.display = 'block';
-            }
-        });
-
-        console.log('Manual Pflegekraft search setup complete');
-    }
-
-// Select Pflegekraft for manual assignment
-    window.selectPflegekraft = function(pflegekraftId, pflegekraftName, currentPatients) {
-        console.log('Selecting Pflegekraft:', pflegekraftName, 'ID:', pflegekraftId);
-
-        const searchInput = document.getElementById('pflegekraftSearch');
-        const hiddenInput = document.getElementById('selectedPflegekraftId');
-        const infoDiv = document.getElementById('selectedPflegekraftInfo');
-        const resultsContainer = document.getElementById('pflegekraftSearchResults');
-
-        if (!searchInput || !hiddenInput || !infoDiv) {
-            console.error('Required elements not found for selection');
-            return;
-        }
-
-        // Set form values
-        searchInput.value = pflegekraftName;
-        hiddenInput.value = pflegekraftId;
-
-        // Hide search results
-        resultsContainer.style.display = 'none';
-
-        // Show selection info
-        const workloadClass = getWorkloadClass(currentPatients);
-        const availableSlots = 24 - currentPatients;
-
-        infoDiv.innerHTML = `
-        <div class="success">
-            ✅ <strong>Pflegekraft ausgewählt:</strong><br>
-            <strong>${pflegekraftName}</strong><br>
-            Auslastung: <span class="pflegekraft-workload ${workloadClass}">${currentPatients}/24 Patienten</span><br>
-            ${availableSlots > 0 ?
-            `<small>✅ ${availableSlots} freie Plätze verfügbar</small>` :
-            `<small>⚠️ Limit erreicht - Zuweisung könnte fehlschlagen</small>`
-        }
-        </div>
-    `;
-        infoDiv.className = `preview-box ${availableSlots > 0 ? 'success' : 'warning'}`;
-        infoDiv.style.display = 'block';
-
-        console.log('Pflegekraft selection complete');
-    };
-// Get workload class for styling
-    function getWorkloadClass(patientCount) {
-        if (patientCount >= 24) return 'full';
-        if (patientCount >= 20) return 'high';
-        if (patientCount >= 15) return 'medium';
-        return 'low';
-    }
 
 // Select Pflegekraft for manual assignment
     window.selectPflegekraft = function(pflegekraftId, pflegekraftName, currentPatients) {
@@ -1025,13 +885,160 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Admin Dashboard vollständig initialisiert');
 });
 
+
 // ======================================
 // PATIENT MANAGEMENT FUNCTIONS (GLOBAL)
 // ======================================
 
+// Enhanced setup for manual Pflegekraft search
+function setupManualPflegekraftSearch() {
+    console.log('Setting up manual Pflegekraft search...');
+
+    const searchInput = document.getElementById('pflegekraftSearch');
+    const resultsContainer = document.getElementById('pflegekraftSearchResults');
+
+    if (!searchInput || !resultsContainer) {
+        console.error('Search elements not found');
+        return;
+    }
+
+    // Remove existing event listeners by cloning
+    const newSearchInput = searchInput.cloneNode(true);
+    searchInput.parentNode.replaceChild(newSearchInput, searchInput);
+
+    // Initialize empty data storage
+    window.currentPflegekraefteData = window.currentPflegekraefteData || [];
+
+    // Add input event listener for real-time search
+    newSearchInput.addEventListener('input', function(e) {
+        const query = e.target.value.trim();
+        console.log('Search query:', query);
+
+        if (query.length < 2) {
+            resultsContainer.style.display = 'none';
+            return;
+        }
+
+        const pflegekraefte = window.currentPflegekraefteData || [];
+        console.log('Available Pflegekräfte for search:', pflegekraefte.length);
+
+        // Filter Pflegekräfte by name or username
+        const filtered = pflegekraefte.filter(pf => {
+            const fullName = `${pf.vorname || ''} ${pf.nachname || ''}`.toLowerCase();
+            const username = (pf.benutzername || '').toLowerCase();
+            const searchName = (pf.name || '').toLowerCase();
+
+            return fullName.includes(query.toLowerCase()) ||
+                username.includes(query.toLowerCase()) ||
+                searchName.includes(query.toLowerCase());
+        });
+
+        console.log('Filtered results:', filtered.length);
+
+        // Display results
+        if (filtered.length === 0) {
+            resultsContainer.innerHTML = '<div class="no-results">Keine Pflegekräfte gefunden</div>';
+        } else {
+            resultsContainer.innerHTML = filtered.map(pf => {
+                const workloadClass = getWorkloadClass(pf.current_patients);
+                const isAtLimit = pf.current_patients >= 24;
+                const displayName = pf.name || `${pf.vorname || ''} ${pf.nachname || ''}`.trim() || pf.benutzername;
+
+                return `
+                    <div class="pflegekraft-result-item ${isAtLimit ? 'full' : ''}" 
+                         onclick="${isAtLimit ? '' : `selectPflegekraft(${pf.id}, '${displayName.replace(/'/g, "\\'")}', ${pf.current_patients})`}">
+                        <div class="pflegekraft-name">${displayName}</div>
+                        <div class="pflegekraft-details">
+                            Standort: ${pf.standort || 'Unbekannt'} | 
+                            ID: ${pf.id}
+                            <span class="pflegekraft-workload ${workloadClass}">
+                                ${pf.current_patients}/24 Patienten
+                            </span>
+                            ${isAtLimit ? '<br><strong>⚠️ LIMIT ERREICHT - Keine Zuweisung möglich</strong>' : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        resultsContainer.style.display = 'block';
+    });
+
+    // Hide results when clicking outside
+    newSearchInput.addEventListener('blur', function() {
+        setTimeout(() => {
+            resultsContainer.style.display = 'none';
+        }, 200);
+    });
+
+    // Show results again when focusing (if there's content)
+    newSearchInput.addEventListener('focus', function() {
+        if (this.value.length >= 2 && resultsContainer.innerHTML.trim()) {
+            resultsContainer.style.display = 'block';
+        }
+    });
+
+    console.log('Manual Pflegekraft search setup complete');
+}
+
+// Load Pflegekräfte for manual selection when standort changes
+async function loadPflegekraefteForManualSelection(standort) {
+    console.log('Loading Pflegekräfte for location:', standort);
+
+    try {
+        const response = await fetch(`/api/admin/pflegekraefte/by-location/${standort}`);
+        const data = await response.json();
+
+        if (data.success) {
+            // Store the data globally for search functionality
+            window.currentPflegekraefteData = data.pflegekraefte;
+
+            console.log('Loaded Pflegekräfte:', data.pflegekraefte.length);
+
+            const infoDiv = document.getElementById('selectedPflegekraftInfo');
+            const availableCount = data.pflegekraefte.filter(pf => pf.current_patients < 24).length;
+
+            infoDiv.innerHTML = `
+                <div class="info">
+                    📋 <strong>${data.pflegekraefte.length} Pflegekräfte</strong> am Standort ${standort} verfügbar.<br>
+                    <small>Suchen Sie nach Namen um eine Pflegekraft auszuwählen. 
+                    ${availableCount} haben noch freie Kapazität.</small>
+                </div>
+            `;
+            infoDiv.className = 'preview-box info';
+            infoDiv.style.display = 'block';
+        } else {
+            console.error('Failed to load Pflegekräfte:', data.message);
+        }
+    } catch (error) {
+        console.error('Error loading Pflegekräfte for manual selection:', error);
+        const infoDiv = document.getElementById('selectedPflegekraftInfo');
+        infoDiv.innerHTML = `
+            <div class="error">
+                ❌ Fehler beim Laden der Pflegekräfte
+            </div>
+        `;
+        infoDiv.className = 'preview-box error';
+        infoDiv.style.display = 'block';
+    }
+}
+
+// Get workload class for styling
+function getWorkloadClass(patientCount) {
+    if (patientCount >= 24) return 'full';
+    if (patientCount >= 20) return 'high';
+    if (patientCount >= 15) return 'medium';
+    return 'low';
+}
+
+// ======================================
+// PATIENT MANAGEMENT FUNCTIONS (GLOBAL)
+// ======================================
 // Global variables for patient management
 let allPatients = [];
 let availablePflegekraefte = [];
+
+
 
 // Get adminId from session storage for patient management functions
 function getAdminId() {
@@ -2212,6 +2219,18 @@ async function testPflegekraftEndpoint() {
         console.error('Test failed:', error);
     }
 }
+
+async function testAPI() {
+    try {
+        const response = await fetch('/api/admin/pflegekraefte/by-location/Krefeld');
+        const data = await response.json();
+        console.log('API Response:', data);
+        return data;
+    } catch (error) {
+        console.error('API Error:', error);
+    }
+}
+testAPI();
 
 // Run the test
 testPflegekraftEndpoint();
