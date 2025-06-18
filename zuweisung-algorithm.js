@@ -33,7 +33,7 @@ class PatientAssignmentAlgorithm {
     async findAvailablePflegekraft() {
         const workloads = await this.getCurrentWorkloads();
 
-        // Erste Pflegekraft mit weniger als 24 Patienten finden
+        // Erste Pflegekraft mit weniger als 24 Patienten finden + CONST PATIENTEN = 24
         const available = workloads.find(pf => pf.current_patients < 24);
 
         if (!available) {

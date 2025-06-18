@@ -1905,6 +1905,185 @@ app.get('/api/admin/patients', async (req, res) => {
     }
 });
 
+// GET assigned patients with their latest vital data for Pflegekraft
+app.get('/api/pflegekraft/patients-with-vitals/:mitarbeiterId', async (req, res) => {
+    const { mitarbeiterId } = req.params;
+
+    try {
+        const patientsQuery = `
+            SELECT 
+                p.id,
+                p.vorname,
+                p.nachname,
+                p.zimmer_nummer,
+                p.standort,
+                -- Latest vital data subquery
+                (
+                    SELECT row_to_json(vital_data)
+                    FROM (
+                        SELECT 
+                            g.id,
+                            g.blutdruck_systolisch,
+                            g.blutdruck_diastolisch,
+                            g.puls,
+                            g.temperatur,
+                            g.sauerstoffsaettigung,
+                            g.gewicht,
+                            g.blutzucker,
+                            g.ist_kritisch,
+                            g.bemerkungen,
+                            g.gemessen_am
+                        FROM gesundheitsdaten g
+                        WHERE g.patient_id = p.id
+                        ORDER BY g.gemessen_am DESC
+                        LIMIT 1
+                    ) vital_data
+                ) as latest_vitals
+            FROM patienten p
+            JOIN patient_zuweisung pz ON p.id = pz.patient_id
+            WHERE pz.mitarbeiter_id = $1 
+              AND pz.status = 'active'
+              AND p.status = 'active'
+            ORDER BY p.nachname, p.vorname
+        `;
+
+        const result = await pool.query(patientsQuery, [mitarbeiterId]);
+
+        res.json({
+            success: true,
+            patients: result.rows
+        });
+
+    } catch (error) {
+        console.error('Patients with vitals API error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error loading patients with vital data: ' + error.message
+        });
+    }
+});
+
+// GET recent vital data for Pflegekraft's patients
+app.get('/api/pflegekraft/recent-vital-data/:mitarbeiterId', async (req, res) => {
+    const { mitarbeiterId } = req.params;
+    const { days = 7 } = req.query;
+
+    try {
+        const recentDataQuery = `
+            SELECT 
+                g.id,
+                g.blutdruck_systolisch,
+                g.blutdruck_diastolisch,
+                g.puls,
+                g.temperatur,
+                g.sauerstoffsaettigung,
+                g.gewicht,
+                g.blutzucker,
+                g.ist_kritisch,
+                g.bemerkungen,
+                g.gemessen_am,
+                p.vorname || ' ' || p.nachname as patient_name,
+                p.zimmer_nummer
+            FROM gesundheitsdaten g
+            JOIN patienten p ON g.patient_id = p.id
+            JOIN patient_zuweisung pz ON p.id = pz.patient_id
+            WHERE pz.mitarbeiter_id = $1 
+              AND pz.status = 'active'
+              AND g.gemessen_am >= NOW() - INTERVAL '${days} days'
+            ORDER BY g.gemessen_am DESC
+            LIMIT 50
+        `;
+
+        const result = await pool.query(recentDataQuery, [mitarbeiterId]);
+
+        res.json({
+            success: true,
+            vitalData: result.rows
+        });
+
+    } catch (error) {
+        console.error('Recent vital data API error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error loading recent vital data: ' + error.message
+        });
+    }
+});
+
+// GET detailed vital data for specific entry
+app.get('/api/vital-data/:vitalDataId', async (req, res) => {
+    const { vitalDataId } = req.params;
+
+    try {
+        const detailQuery = `
+            SELECT 
+                g.*,
+                p.vorname || ' ' || p.nachname as patient_name,
+                p.zimmer_nummer,
+                p.standort,
+                m.vorname || ' ' || m.nachname as recorded_by
+            FROM gesundheitsdaten g
+            JOIN patienten p ON g.patient_id = p.id
+            LEFT JOIN mitarbeiter m ON g.mitarbeiter_id = m.id
+            WHERE g.id = $1
+        `;
+
+        const result = await pool.query(detailQuery, [vitalDataId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Vital data not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            vitalData: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error('Vital data details API error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error loading vital data details: ' + error.message
+        });
+    }
+});
+
+// GET vital data history for specific patient
+app.get('/api/patient/:patientId/vital-history', async (req, res) => {
+    const { patientId } = req.params;
+    const { days = 30 } = req.query;
+
+    try {
+        const historyQuery = `
+            SELECT 
+                g.*,
+                m.vorname || ' ' || m.nachname as recorded_by
+            FROM gesundheitsdaten g
+            LEFT JOIN mitarbeiter m ON g.mitarbeiter_id = m.id
+            WHERE g.patient_id = $1
+              AND g.gemessen_am >= NOW() - INTERVAL '${days} days'
+            ORDER BY g.gemessen_am DESC
+        `;
+
+        const result = await pool.query(historyQuery, [patientId]);
+
+        res.json({
+            success: true,
+            history: result.rows
+        });
+
+    } catch (error) {
+        console.error('Vital data history API error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error loading vital data history: ' + error.message
+        });
+    }
+});
+
 // Aktueller Patientenstandort für Admin-Transfer-Formular
 app.get('/api/patients/:patientId/location', async (req, res) => {
     const { patientId } = req.params;

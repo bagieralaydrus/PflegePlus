@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vitaldaten – PflegeVision</title>
+  <link rel="stylesheet" href="vitaldaten.css">
+</head>
+<body>
+<!-- Animierter Partikelhintergrund -->
+<canvas id="bg"></canvas>
+
+<!-- Navigationsheader -->
+<header class="header">
+  <div class="header-container">
+    <div class="logo">PflegeVision</div>
+    <nav class="nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="index.html">Aufgaben</a>
+      <a href="vitaldaten.html">Vitaldaten</a>
+    </nav>
+  </div>
+</header>
+
+<!-- Hauptinhalt -->
+<main class="main">
+  <div class="page-header">
+    <h1>Vitaldaten Management</h1>
+    <p>Übersicht und Eingabe von Gesundheitsdaten Ihrer zugewiesenen Patienten</p>
+  </div>
+
+  <!-- Filter und Aktionen -->
+  <div class="controls-section">
+    <div class="search-controls">
+      <input type="text" id="patientSearch" placeholder="Patient suchen...">
+      <select id="filterCritical">
+        <option value="all">Alle Patienten</option>
+        <option value="critical">Nur kritische Werte</option>
+        <option value="normal">Nur normale Werte</option>
+      </select>
+      <button class="btn-primary" onclick="showAddVitalDataModal()">+ Neue Vitaldaten erfassen</button>
+    </div>
+  </div>
+
+  <!-- Patientenliste mit Vitaldaten -->
+  <div class="patients-section">
+    <div class="section-header">
+      <h2>Meine Patienten</h2>
+      <span id="patientCount" class="count-badge">Lädt...</span>
+    </div>
+
+    <div class="patients-grid" id="patientsGrid">
+      <!-- JavaScript wird hier Patienten-Cards einfügen -->
+    </div>
+  </div>
+
+  <!-- Letzte Vitaldaten Übersicht -->
+  <div class="recent-data-section">
+    <h3>Kürzlich erfasste Vitaldaten</h3>
+    <div class="table-wrapper">
+      <table id="recentVitalDataTable">
+        <thead>
+        <tr>
+          <th>Zeit</th>
+          <th>Patient</th>
+          <th>Blutdruck</th>
+          <th>Puls</th>
+          <th>Temperatur</th>
+          <th>O2-Sättigung</th>
+          <th>Status</th>
+          <th>Aktionen</th>
+        </tr>
+        </thead>
+        <tbody>
+        <!-- JavaScript füllt Tabelle -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- Modal für neue Vitaldaten -->
+<div id="addVitalDataModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Neue Vitaldaten erfassen</h2>
+      <button class="modal-close" onclick="closeAddVitalDataModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="vitalDataForm">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="modalPatientSelect">Patient:</label>
+            <select id="modalPatientSelect" required>
+              <option value="">-- Patient wählen --</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="blutdruckSystolisch">Blutdruck systolisch (mmHg):</label>
+            <input type="number" id="blutdruckSystolisch" min="60" max="250" placeholder="z.B. 120">
+            <span class="reference-range">Normal: 90-140</span>
+          </div>
+
+          <div class="form-group">
+            <label for="blutdruckDiastolisch">Blutdruck diastolisch (mmHg):</label>
+            <input type="number" id="blutdruckDiastolisch" min="40" max="150" placeholder="z.B. 80">
+            <span class="reference-range">Normal: 60-90</span>
+          </div>
+
+          <div class="form-group">
+            <label for="puls">Puls (bpm):</label>
+            <input type="number" id="puls" min="30" max="200" placeholder="z.B. 72">
+            <span class="reference-range">Normal: 60-100</span>
+          </div>
+
+          <div class="form-group">
+            <label for="temperatur">Temperatur (°C):</label>
+            <input type="number" id="temperatur" step="0.1" min="30" max="45" placeholder="z.B. 36.5">
+            <span class="reference-range">Normal: 36.1-37.2</span>
+          </div>
+
+          <div class="form-group">
+            <label for="sauerstoffsaettigung">O2-Sättigung (%):</label>
+            <input type="number" id="sauerstoffsaettigung" min="70" max="100" placeholder="z.B. 98">
+            <span class="reference-range">Normal: ≥95%</span>
+          </div>
+
+          <div class="form-group">
+            <label for="gewicht">Gewicht (kg):</label>
+            <input type="number" id="gewicht" step="0.1" min="20" max="200" placeholder="z.B. 70.5">
+          </div>
+
+          <div class="form-group">
+            <label for="blutzucker">Blutzucker (mg/dl):</label>
+            <input type="number" id="blutzucker" min="40" max="400" placeholder="z.B. 95">
+            <span class="reference-range">Normal: 70-110 (nüchtern)</span>
+          </div>
+
+          <div class="form-group full-width">
+            <label for="bemerkungen">Bemerkungen:</label>
+            <textarea id="bemerkungen" rows="3" placeholder="Zusätzliche Notizen oder Beobachtungen..."></textarea>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" onclick="closeAddVitalDataModal()">Abbrechen</button>
+          <button type="submit" class="btn-primary">Vitaldaten speichern</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal für Vitaldaten-Details -->
+<div id="vitalDataDetailsModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Vitaldaten-Details</h2>
+      <button class="modal-close" onclick="closeDetailsModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="vitalDataDetailsContent">
+      <!-- Details werden hier eingefügt -->
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<footer class="footer">
+  <p>&copy; 2025 PflegeVision. Alle Rechte vorbehalten.</p>
+</footer>
+
+<!-- Benachrichtigungsbereich -->
+<div id="notificationArea"></div>
+
+<script src="vitaldaten.js"></script>
+</body>
+</html>

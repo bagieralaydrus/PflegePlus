@@ -81,6 +81,11 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
 
+        .patient-card.selected {
+            background: #e3f2fd;
+            border-color: #2d7ff9;
+        }
+
         .patient-info h3 {
             color: #333;
             margin-bottom: 0.25rem;
@@ -253,21 +258,35 @@
     <div class="demo-instructions">
         <h3>📋 Anweisungen:</h3>
         <ol>
-            <li>Wählen Sie einen Patienten aus der Liste unten</li>
+            <li>Sophia Schwarz ist bereits ausgewählt für die Präsentation</li>
             <li>Klicken Sie auf ein Alarm-Szenario</li>
-            <li>Öffnen Sie das <strong>Pflegekraft-Dashboard</strong> oder <strong>Admin-Dashboard</strong></li>
+            <li>Öffnen Sie das <strong>Pflegekraft-Dashboard (Frank)</strong> oder <strong>Admin-Dashboard</strong></li>
             <li>Beobachten Sie die kritischen Alarme, die automatisch erscheinen</li>
-            <li>Testen Sie verschiedene Szenarien mit verschiedenen Patienten</li>
+            <li>Testen Sie verschiedene Szenarien</li>
         </ol>
     </div>
 
     <div class="demo-section">
         <h2>👥 Verfügbare Patienten</h2>
         <div class="patient-list" id="patientList">
+            <!-- Sophia/Sophie Schwarz - für Präsentation -->
+            <div class="patient-card selected" onclick="selectPatient(38)" id="patient-38">
+                <div class="patient-info">
+                    <h3>🌟 Sophia Schwarz (Präsentation)</h3>
+                    <div class="patient-details">
+                        📍 Krefeld | 🛏️ Zimmer K123 | 👨‍⚕️ Frank (ID: 38)
+                    </div>
+                </div>
+                <div class="select-indicator">
+                    <span style="color: #2d7ff9; font-weight: bold;">✓ Ausgewählt</span>
+                </div>
+            </div>
+
+            <!-- Weitere Patienten werden hier dynamisch geladen -->
             <div class="patient-card">
                 <div class="patient-info">
                     <div class="loading"></div>
-                    <span>Lade Patienten...</span>
+                    <span>Lade weitere Patienten...</span>
                 </div>
             </div>
         </div>
@@ -276,26 +295,26 @@
     <div class="demo-section">
         <h2>🚨 Alarm-Szenarien</h2>
         <p style="margin-bottom: 1rem; color: #666;">
-            Wählen Sie zunächst einen Patienten aus, dann klicken Sie auf ein Szenario:
+            Sophia ist bereits ausgewählt - klicken Sie direkt auf ein Szenario:
         </p>
         <div class="scenario-buttons">
-            <button class="scenario-btn" onclick="triggerScenario('high_blood_pressure')" disabled>
+            <button class="scenario-btn" onclick="triggerScenario('high_blood_pressure')">
                 🩸 Hoher Blutdruck<br>
                 <small>(195/125 mmHg)</small>
             </button>
-            <button class="scenario-btn" onclick="triggerScenario('low_oxygen')" disabled>
+            <button class="scenario-btn" onclick="triggerScenario('low_oxygen')">
                 🫁 Niedrige O2-Sättigung<br>
                 <small>(87% + Atemnot)</small>
             </button>
-            <button class="scenario-btn" onclick="triggerScenario('high_fever')" disabled>
+            <button class="scenario-btn" onclick="triggerScenario('high_fever')">
                 🌡️ Hohes Fieber<br>
                 <small>(39.8°C + Schwäche)</small>
             </button>
-            <button class="scenario-btn" onclick="triggerScenario('multiple_critical')" disabled>
+            <button class="scenario-btn" onclick="triggerScenario('multiple_critical')">
                 ⚠️ Mehrfach-Kritisch<br>
                 <small>(Notfall-Szenario)</small>
             </button>
-            <button class="scenario-btn normal" onclick="triggerScenario('normal')" disabled>
+            <button class="scenario-btn normal" onclick="triggerScenario('normal')">
                 ✅ Normale Werte<br>
                 <small>(Kein Alarm)</small>
             </button>
@@ -308,7 +327,7 @@
 
     <div class="navigation-links">
         <a href="/pflegekraft/dashboard.html" class="nav-link" target="_blank">
-            👨‍⚕️ Pflegekraft Dashboard
+            👨‍⚕️ Pflegekraft Dashboard (Frank)
         </a>
         <a href="/admin" class="nav-link" target="_blank">
             👨‍💼 Admin Dashboard
@@ -320,48 +339,71 @@
 </div>
 
 <script>
-    let selectedPatientId = null;
-    let patients = [];
+    let selectedPatientId = 38; // Sophia standardmäßig ausgewählt
+    let patients = [
+        {
+            id: 38,
+            name: "Sophia Schwarz",
+            standort: "Krefeld",
+            zimmer_nummer: "K123",
+            pflegekraft: "Frank"
+        }
+    ];
 
     document.addEventListener('DOMContentLoaded', async () => {
-        await loadPatients();
+        // Sophia ist bereits im HTML vordefiniert und ausgewählt
+        showStatus('✅ Sophia Schwarz ist bereit für Alarm-Tests', 'success');
+
+        // Lade weitere Patienten im Hintergrund
+        await loadAdditionalPatients();
     });
 
-    // Patienten vom Server laden
-    async function loadPatients() {
+    // Zusätzliche Patienten vom Server laden (zusätzlich zu Sophia)
+    async function loadAdditionalPatients() {
         try {
             const response = await fetch('/api/demo/patients');
             const data = await response.json();
 
             if (data.success) {
-                patients = data.patients;
-                displayPatients(patients);
+                const otherPatients = data.patients.filter(p => p.id !== 38); // Sophia ausschließen
+                displayAdditionalPatients(otherPatients);
             } else {
-                showStatus('Fehler beim Laden der Patienten', 'error');
+                console.log('Nur Sophia verfügbar für Demo');
+                // Entferne Loading-Indikator
+                const loadingCard = document.querySelector('.patient-card:has(.loading)');
+                if (loadingCard) {
+                    loadingCard.style.display = 'none';
+                }
             }
         } catch (error) {
-            console.error('Error loading patients:', error);
-            showStatus('Verbindungsfehler beim Laden der Patienten', 'error');
+            console.error('Error loading additional patients:', error);
+            // Entferne Loading-Indikator bei Fehler
+            const loadingCard = document.querySelector('.patient-card:has(.loading)');
+            if (loadingCard) {
+                loadingCard.innerHTML = `
+                    <div class="patient-info">
+                        <h3 style="color: #666;">Weitere Patienten nicht verfügbar</h3>
+                        <div class="patient-details">Nur Sophia für Präsentation verfügbar</div>
+                    </div>
+                `;
+            }
         }
     }
 
-    // Patientenliste in der UI anzeigen
-    function displayPatients(patientList) {
+    // Zusätzliche Patienten zur Liste hinzufügen
+    function displayAdditionalPatients(patientList) {
         const container = document.getElementById('patientList');
+        const loadingCard = container.querySelector('.patient-card:has(.loading)');
 
         if (patientList.length === 0) {
-            container.innerHTML = `
-                <div class="patient-card">
-                    <div class="patient-info">
-                        <h3>Keine Patienten gefunden</h3>
-                        <div class="patient-details">Bitte stellen Sie sicher, dass Patienten in der Datenbank vorhanden sind.</div>
-                    </div>
-                </div>
-            `;
+            if (loadingCard) {
+                loadingCard.style.display = 'none';
+            }
             return;
         }
 
-        container.innerHTML = patientList.map(patient => `
+        // Ersetze Loading-Karte mit zusätzlichen Patienten
+        const additionalPatientsHTML = patientList.map(patient => `
             <div class="patient-card" onclick="selectPatient(${patient.id})" id="patient-${patient.id}">
                 <div class="patient-info">
                     <h3>${patient.name}</h3>
@@ -374,6 +416,15 @@
                 </div>
             </div>
         `).join('');
+
+        if (loadingCard) {
+            loadingCard.outerHTML = additionalPatientsHTML;
+        } else {
+            container.innerHTML += additionalPatientsHTML;
+        }
+
+        // Patienten zur globalen Liste hinzufügen
+        patients = [...patients, ...patientList];
     }
 
     // Patient auswählen und UI aktualisieren
@@ -382,21 +433,28 @@
 
         // Visuelle Auswahl aktualisieren
         document.querySelectorAll('.patient-card').forEach(card => {
-            card.style.background = 'white';
-            card.style.borderColor = '#ddd';
+            card.classList.remove('selected');
+            const indicator = card.querySelector('.select-indicator span');
+            if (indicator) {
+                indicator.textContent = 'Auswählen';
+                indicator.style.color = '#2d7ff9';
+            }
         });
 
         const selectedCard = document.getElementById(`patient-${patientId}`);
-        selectedCard.style.background = '#e3f2fd';
-        selectedCard.style.borderColor = '#2d7ff9';
-
-        // Szenario-Buttons aktivieren
-        document.querySelectorAll('.scenario-btn').forEach(btn => {
-            btn.disabled = false;
-        });
+        if (selectedCard) {
+            selectedCard.classList.add('selected');
+            const indicator = selectedCard.querySelector('.select-indicator span');
+            if (indicator) {
+                indicator.textContent = '✓ Ausgewählt';
+                indicator.style.color = '#28a745';
+            }
+        }
 
         const selectedPatient = patients.find(p => p.id === patientId);
-        showStatus(`Patient ausgewählt: ${selectedPatient.name}`, 'success');
+        if (selectedPatient) {
+            showStatus(`Patient ausgewählt: ${selectedPatient.name}`, 'success');
+        }
     }
 
     // Alarm-Szenario auslösen
@@ -435,7 +493,7 @@
                 if (scenario === 'normal') {
                     showStatus(`✅ Normale Gesundheitswerte für ${selectedPatient.name} eingetragen. Kein Alarm ausgelöst.`, 'success');
                 } else {
-                    showStatus(`🚨 KRITISCHER ALARM ausgelöst für ${selectedPatient.name}! Öffnen Sie das Dashboard, um die Benachrichtigungen zu sehen.`, 'success');
+                    showStatus(`🚨 KRITISCHER ALARM ausgelöst für ${selectedPatient.name}! Öffnen Sie Frank's Dashboard oder Admin-Dashboard, um die Benachrichtigungen zu sehen.`, 'success');
 
                     // Visueller Effekt für kritische Szenarien
                     document.body.style.background = '#ffebee';
@@ -476,7 +534,7 @@
 
     // Button-Klick-Effekte
     document.addEventListener('click', (e) => {
-        if (e.target.classList.contains('scenario-btn') && !e.target.disabled) {
+        if (e.target.classList.contains('scenario-btn')) {
             e.target.style.transform = 'scale(0.95)';
             setTimeout(() => {
                 e.target.style.transform = '';
