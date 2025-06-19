@@ -593,3 +593,78 @@ body:has(.critical-alert-banner) .main {
     flex-direction: column;
   }
 }
+
+/* ====== Alarm History Section ====== */
+.alarm-history-section {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  margin-top: 2rem;
+}
+
+.alarm-history-container {
+  margin-top: 1rem;
+}
+
+#alarmHistoryTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+#alarmHistoryTable th,
+#alarmHistoryTable td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+#alarmHistoryTable th {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #555;
+}
+
+.alarm-priority {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.alarm-priority.urgent {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.alarm-priority.high {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.alarm-priority.normal {
+  background: #d4edda;
+  color: #155724;
+}
+
+.alarm-status {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.alarm-status.read {
+  background: #d4edda;
+  color: #155724;
+}
+
+.alarm-status.unread {
+  background: #f8d7da;
+  color: #721c24;
+}

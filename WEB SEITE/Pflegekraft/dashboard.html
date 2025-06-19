@@ -56,6 +56,34 @@
       </table>
     </div>
   </section>
+
+  <!-- Alarm Historie Section -->
+  <section class="alarm-history-section">
+    <div class="section-header">
+      <h3>Kürzlich bearbeitete Alarme</h3>
+      <button class="btn-secondary" onclick="toggleAlarmHistory()">Historie anzeigen/ausblenden</button>
+    </div>
+
+    <div id="alarmHistoryContainer" class="alarm-history-container" style="display: none;">
+      <div class="table-wrapper">
+        <table id="alarmHistoryTable">
+          <thead>
+          <tr>
+            <th>Zeit</th>
+            <th>Patient</th>
+            <th>Typ</th>
+            <th>Nachricht</th>
+            <th>Priorität</th>
+            <th>Status</th>
+          </tr>
+          </thead>
+          <tbody>
+          <!-- JavaScript fills this -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
 </main>
 
 <!-- Footer -->

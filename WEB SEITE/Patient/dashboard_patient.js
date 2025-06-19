@@ -245,6 +245,232 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Add these functions to your dashboard_patient.js file
+
+// Load vital signs data for patient dashboard
+    function loadVitalSigns(patientId) {
+        fetch(`/api/patient/${patientId}/vital-summary`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    updateVitalSignsDisplay(data);
+                } else {
+                    showVitalSignsError(data.message || 'Fehler beim Laden der Vitaldaten');
+                }
+            })
+            .catch(error => {
+                console.error('Vital signs loading error:', error);
+                showVitalSignsError('Fehler beim Laden der Vitaldaten');
+            });
+    }
+
+// Update vital signs display with data
+    function updateVitalSignsDisplay(data) {
+        const loadingState = document.getElementById('vitalLoadingState');
+        const noDataState = document.getElementById('vitalNoDataState');
+        const dataDisplay = document.getElementById('vitalDataDisplay');
+        const lastUpdateEl = document.getElementById('vitalLastUpdate');
+
+        // Hide loading state
+        loadingState.style.display = 'none';
+
+        if (!data.hasData) {
+            // Show no data state
+            noDataState.style.display = 'block';
+            dataDisplay.style.display = 'none';
+            lastUpdateEl.textContent = 'Keine aktuellen Daten';
+            return;
+        }
+
+        // Show data display
+        noDataState.style.display = 'none';
+        dataDisplay.style.display = 'block';
+
+        // Update last measurement time
+        if (data.lastMeasurement) {
+            const measurementDate = new Date(data.lastMeasurement);
+            const now = new Date();
+            const diffHours = Math.floor((now - measurementDate) / (1000 * 60 * 60));
+
+            let timeText;
+            if (diffHours < 1) {
+                timeText = 'Vor weniger als einer Stunde gemessen';
+            } else if (diffHours < 24) {
+                timeText = `Vor ${diffHours} Stunde${diffHours > 1 ? 'n' : ''} gemessen`;
+            } else {
+                const diffDays = Math.floor(diffHours / 24);
+                timeText = `Vor ${diffDays} Tag${diffDays > 1 ? 'en' : ''} gemessen`;
+            }
+
+            lastUpdateEl.textContent = timeText;
+        }
+
+        // Update status banner
+        updateVitalStatusBanner(data.overallStatus, data.statusMessage);
+
+        // Update individual vital cards
+        updateVitalCard('vitalBloodPressure', data.vitals.bloodPressure);
+        updateVitalCard('vitalPulse', data.vitals.pulse);
+        updateVitalCard('vitalTemperature', data.vitals.temperature);
+        updateVitalCard('vitalOxygen', data.vitals.oxygenSaturation);
+        updateVitalCard('vitalWeight', data.vitals.weight);
+    }
+
+// Update status banner
+    function updateVitalStatusBanner(status, message) {
+        const banner = document.querySelector('.vital-status-banner');
+        const indicator = document.getElementById('vitalStatusIndicator');
+        const messageEl = document.getElementById('vitalStatusMessage');
+
+        // Remove existing status classes
+        banner.classList.remove('warning', 'critical');
+        indicator.classList.remove('warning', 'critical');
+
+        // Add appropriate status class
+        if (status === 'warning') {
+            banner.classList.add('warning');
+            indicator.classList.add('warning');
+        } else if (status === 'critical') {
+            banner.classList.add('critical');
+            indicator.classList.add('critical');
+        }
+
+        messageEl.textContent = message;
+    }
+
+// Update individual vital card
+    function updateVitalCard(cardId, vitalData) {
+        const card = document.getElementById(cardId);
+        const valueEl = card.querySelector('.value');
+        const trendEl = card.querySelector('.vital-trend');
+
+        // Remove existing status classes
+        card.classList.remove('warning', 'critical');
+
+        if (vitalData.value !== null && vitalData.value !== undefined) {
+            // Display value
+            if (typeof vitalData.value === 'number') {
+                valueEl.textContent = vitalData.value.toFixed(1);
+            } else {
+                valueEl.textContent = vitalData.value;
+            }
+
+            // Update trend
+            trendEl.className = `vital-trend ${vitalData.trend}`;
+
+            // Set trend text based on trend direction
+            const trendTexts = {
+                'increasing': 'Steigend',
+                'decreasing': 'Fallend',
+                'stable': 'Stabil'
+            };
+            trendEl.textContent = trendTexts[vitalData.trend] || '';
+
+            // Add status class to card
+            if (vitalData.status === 'warning') {
+                card.classList.add('warning');
+            } else if (vitalData.status === 'critical') {
+                card.classList.add('critical');
+            }
+        } else {
+            // No data available
+            valueEl.textContent = '--';
+            trendEl.textContent = '';
+            trendEl.className = 'vital-trend';
+        }
+    }
+
+// Show error state for vital signs
+    function showVitalSignsError(message) {
+        const loadingState = document.getElementById('vitalLoadingState');
+        const noDataState = document.getElementById('vitalNoDataState');
+        const dataDisplay = document.getElementById('vitalDataDisplay');
+        const lastUpdateEl = document.getElementById('vitalLastUpdate');
+
+        loadingState.style.display = 'none';
+        dataDisplay.style.display = 'none';
+
+        // Show error in no data state
+        noDataState.style.display = 'block';
+        noDataState.querySelector('h4').textContent = 'Fehler beim Laden';
+        noDataState.querySelector('p').textContent = message;
+
+        lastUpdateEl.textContent = 'Daten nicht verfügbar';
+    }
+
+// Add this to your existing DOMContentLoaded event listener
+// Update the main loadDashboardData function to also load vital signs
+
+    function loadDashboardData() {
+        fetch(`/api/patient/dashboard/${patientId}`)
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return res.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    patientData = data;
+                    userEl.textContent = data.username;
+                    caregiverEl.textContent = data.caregiver;
+                    taskCountEl.textContent = data.todaysAssignments.length;
+                    currentLocationEl.textContent = data.currentLocation || 'Unbekannt';
+
+                    // Update assignments table
+                    tableBody.innerHTML = '';
+                    if (data.todaysAssignments.length === 0) {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                        <td colspan="3" style="text-align: center; color: #666;">
+                            Keine Aufgaben für heute geplant
+                        </td>
+                    `;
+                        tableBody.appendChild(tr);
+                    } else {
+                        data.todaysAssignments.forEach(a => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                            <td>${a.aufgabe}</td>
+                            <td>${a.zeit}</td>
+                            <td><span class="status ${a.status.toLowerCase()}">${a.status}</span></td>
+                        `;
+                            tableBody.appendChild(tr);
+                        });
+                    }
+
+                    // Load vital signs data
+                    loadVitalSigns(patientId);
+                } else {
+                    throw new Error(data.message || 'Failed to load dashboard');
+                }
+            })
+            .catch(error => {
+                console.error('Dashboard loading error:', error);
+                userEl.textContent = currentUser.username || 'Unbekannt';
+                caregiverEl.textContent = 'Nicht verfügbar';
+                taskCountEl.textContent = '—';
+                currentLocationEl.textContent = 'Unbekannt';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                <td colspan="3" style="text-align: center; color: #666;">
+                    Fehler beim Laden der Daten. Bitte versuchen Sie es später erneut.
+                </td>
+            `;
+                tableBody.appendChild(tr);
+
+                // Show error for vital signs too
+                showVitalSignsError('Fehler beim Laden der Dashboard-Daten');
+            });
+    }
+
+// Update the interval to also refresh vital signs
+// Replace the existing setInterval call with:
+    setInterval(() => {
+        loadDashboardData(); // This now includes vital signs loading
+    }, 30000); // Refresh every 30 seconds
+
     // Vergangene Aktivitäten laden
     function loadAssignmentHistory() {
         fetch(`/api/patient/assignments/history/${patientId}?days=7`)
@@ -324,6 +550,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     loadDashboardData();
+
 
     // Automatische Aktualisierung alle 30 Sekunden
     setInterval(loadDashboardData, 30000);

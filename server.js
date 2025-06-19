@@ -2010,6 +2010,41 @@ app.get('/api/pflegekraft/recent-vital-data/:mitarbeiterId', async (req, res) =>
     }
 });
 
+// Get alarm history for specific Pflegekraft
+app.get('/api/pflegekraft/alarm-history/:mitarbeiterId', async (req, res) => {
+    const { mitarbeiterId } = req.params;
+    const { days = 7 } = req.query; // Default to last 7 days
+
+    try {
+        const historyQuery = `
+            SELECT 
+                b.*,
+                p.vorname || ' ' || p.nachname as patient_name,
+                p.zimmer_nummer
+            FROM benachrichtigungen b
+            LEFT JOIN patienten p ON b.patient_id = p.id
+            WHERE b.mitarbeiter_id = $1
+              AND b.erstellt_am >= NOW() - INTERVAL '${days} days'
+            ORDER BY b.erstellt_am DESC
+            LIMIT 50
+        `;
+
+        const result = await pool.query(historyQuery, [mitarbeiterId]);
+
+        res.json({
+            success: true,
+            alarmHistory: result.rows
+        });
+
+    } catch (error) {
+        console.error('Alarm history API error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error loading alarm history: ' + error.message
+        });
+    }
+});
+
 // GET detailed vital data for specific entry
 app.get('/api/vital-data/:vitalDataId', async (req, res) => {
     const { vitalDataId } = req.params;
@@ -2083,6 +2118,207 @@ app.get('/api/patient/:patientId/vital-history', async (req, res) => {
         });
     }
 });
+
+// Add this endpoint to your server.js file (around line 2800-3000, with other patient APIs)
+
+// Get latest vital data for patient dashboard (family-friendly view)
+app.get('/api/patient/:patientId/vital-summary', async (req, res) => {
+    const { patientId } = req.params;
+
+    try {
+        // Get latest vital data with comparison to previous measurement
+        const vitalDataQuery = `
+            WITH latest_vitals AS (
+                SELECT 
+                    g.*,
+                    ROW_NUMBER() OVER (ORDER BY g.gemessen_am DESC) as rn
+                FROM gesundheitsdaten g
+                WHERE g.patient_id = $1
+                AND g.gemessen_am >= NOW() - INTERVAL '7 days'
+            ),
+            previous_vitals AS (
+                SELECT 
+                    blutdruck_systolisch as prev_systolic,
+                    blutdruck_diastolisch as prev_diastolic,
+                    puls as prev_puls,
+                    temperatur as prev_temperatur,
+                    sauerstoffsaettigung as prev_oxygen
+                FROM latest_vitals
+                WHERE rn = 2
+            )
+            SELECT 
+                lv.blutdruck_systolisch,
+                lv.blutdruck_diastolisch,
+                lv.puls,
+                lv.temperatur,
+                lv.sauerstoffsaettigung,
+                lv.gewicht,
+                lv.gemessen_am,
+                lv.ist_kritisch,
+                -- Previous values for trend calculation
+                pv.prev_systolic,
+                pv.prev_diastolic,
+                pv.prev_puls,
+                pv.prev_temperatur,
+                pv.prev_oxygen,
+                -- Calculate trends
+                CASE 
+                    WHEN pv.prev_systolic IS NULL THEN 'stable'
+                    WHEN lv.blutdruck_systolisch > pv.prev_systolic + 10 THEN 'increasing'
+                    WHEN lv.blutdruck_systolisch < pv.prev_systolic - 10 THEN 'decreasing'
+                    ELSE 'stable'
+                END as blood_pressure_trend,
+                CASE 
+                    WHEN pv.prev_puls IS NULL THEN 'stable'
+                    WHEN lv.puls > pv.prev_puls + 10 THEN 'increasing'
+                    WHEN lv.puls < pv.prev_puls - 10 THEN 'decreasing'
+                    ELSE 'stable'
+                END as pulse_trend,
+                CASE 
+                    WHEN pv.prev_temperatur IS NULL THEN 'stable'
+                    WHEN lv.temperatur > pv.prev_temperatur + 0.5 THEN 'increasing'
+                    WHEN lv.temperatur < pv.prev_temperatur - 0.5 THEN 'decreasing'
+                    ELSE 'stable'
+                END as temperature_trend,
+                CASE 
+                    WHEN pv.prev_oxygen IS NULL THEN 'stable'
+                    WHEN lv.sauerstoffsaettigung > pv.prev_oxygen + 2 THEN 'increasing'
+                    WHEN lv.sauerstoffsaettigung < pv.prev_oxygen - 2 THEN 'decreasing'
+                    ELSE 'stable'
+                END as oxygen_trend
+            FROM latest_vitals lv
+            LEFT JOIN previous_vitals pv ON true
+            WHERE lv.rn = 1
+        `;
+
+        const result = await pool.query(vitalDataQuery, [patientId]);
+
+        if (result.rows.length === 0) {
+            return res.json({
+                success: true,
+                hasData: false,
+                message: 'Keine Vitaldaten in den letzten 7 Tagen verfügbar'
+            });
+        }
+
+        const vitalData = result.rows[0];
+
+        // Determine overall status based on critical values
+        let overallStatus = 'normal';
+        let statusMessage = 'Alle Werte im normalen Bereich';
+
+        if (vitalData.ist_kritisch) {
+            overallStatus = 'critical';
+            statusMessage = 'Einige Werte bedürfen Aufmerksamkeit';
+        } else {
+            // Check for warning levels (less severe than critical)
+            const warnings = [];
+
+            if (vitalData.blutdruck_systolisch > 160 || vitalData.blutdruck_systolisch < 100) {
+                warnings.push('Blutdruck');
+            }
+            if (vitalData.puls > 100 || vitalData.puls < 60) {
+                warnings.push('Puls');
+            }
+            if (vitalData.temperatur > 38 || vitalData.temperatur < 36) {
+                warnings.push('Temperatur');
+            }
+            if (vitalData.sauerstoffsaettigung < 95) {
+                warnings.push('Sauerstoffsättigung');
+            }
+
+            if (warnings.length > 0) {
+                overallStatus = 'warning';
+                statusMessage = `Überwachung empfohlen: ${warnings.join(', ')}`;
+            }
+        }
+
+        // Format the response for family-friendly display
+        const vitalSummary = {
+            hasData: true,
+            lastMeasurement: vitalData.gemessen_am,
+            overallStatus: overallStatus,
+            statusMessage: statusMessage,
+            vitals: {
+                bloodPressure: {
+                    value: vitalData.blutdruck_systolisch && vitalData.blutdruck_diastolisch
+                        ? `${vitalData.blutdruck_systolisch}/${vitalData.blutdruck_diastolisch}`
+                        : null,
+                    unit: 'mmHg',
+                    trend: vitalData.blood_pressure_trend,
+                    status: getVitalStatus('blood_pressure', vitalData.blutdruck_systolisch, vitalData.blutdruck_diastolisch)
+                },
+                pulse: {
+                    value: vitalData.puls,
+                    unit: 'bpm',
+                    trend: vitalData.pulse_trend,
+                    status: getVitalStatus('pulse', vitalData.puls)
+                },
+                temperature: {
+                    value: vitalData.temperatur,
+                    unit: '°C',
+                    trend: vitalData.temperature_trend,
+                    status: getVitalStatus('temperature', vitalData.temperatur)
+                },
+                oxygenSaturation: {
+                    value: vitalData.sauerstoffsaettigung,
+                    unit: '%',
+                    trend: vitalData.oxygen_trend,
+                    status: getVitalStatus('oxygen', vitalData.sauerstoffsaettigung)
+                },
+                weight: {
+                    value: vitalData.gewicht,
+                    unit: 'kg',
+                    trend: 'stable', // Weight trends need longer timeframe
+                    status: 'normal' // Weight doesn't have critical thresholds
+                }
+            }
+        };
+
+        res.json({
+            success: true,
+            ...vitalSummary
+        });
+
+    } catch (error) {
+        console.error('Patient vital summary error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Fehler beim Laden der Vitaldaten'
+        });
+    }
+});
+
+// Helper function to determine vital status
+function getVitalStatus(type, value1, value2 = null) {
+    if (!value1) return 'unknown';
+
+    switch (type) {
+        case 'blood_pressure':
+            if (!value2) return 'unknown';
+            if (value1 > 180 || value1 < 90 || value2 > 120 || value2 < 60) return 'critical';
+            if (value1 > 160 || value1 < 100 || value2 > 100 || value2 < 70) return 'warning';
+            return 'normal';
+
+        case 'pulse':
+            if (value1 > 120 || value1 < 50) return 'critical';
+            if (value1 > 100 || value1 < 60) return 'warning';
+            return 'normal';
+
+        case 'temperature':
+            if (value1 > 39 || value1 < 35) return 'critical';
+            if (value1 > 38 || value1 < 36) return 'warning';
+            return 'normal';
+
+        case 'oxygen':
+            if (value1 < 90) return 'critical';
+            if (value1 < 95) return 'warning';
+            return 'normal';
+
+        default:
+            return 'normal';
+    }
+}
 
 // Aktueller Patientenstandort für Admin-Transfer-Formular
 app.get('/api/patients/:patientId/location', async (req, res) => {
