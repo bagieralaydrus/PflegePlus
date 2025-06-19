@@ -8,13 +8,125 @@ document.addEventListener('DOMContentLoaded', () => {
   const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
   const mitarbeiterId = currentUser.id;
 
+
   // Benutzerauthentifizierung prüfen
   if (!mitarbeiterId) {
     alert('Benutzer nicht gefunden. Bitte loggen Sie sich erneut ein.');
     window.location.href = '/';
     return;
   }
+// Add this to your existing dashboard.js
 
+// Load alarm history for the current Pflegekraft
+  async function loadAlarmHistory() {
+    try {
+      const response = await fetch(`/api/pflegekraft/alarm-history/${mitarbeiterId}`);
+      if (!response.ok) throw new Error('Network response was not ok');
+
+      const data = await response.json();
+
+      if (data.success) {
+        renderAlarmHistory(data.alarmHistory);
+      }
+    } catch (error) {
+      console.error('Alarm history loading error:', error);
+      const tbody = document.querySelector('#alarmHistoryTable tbody');
+      if (tbody) {
+        tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; color: #666;">
+                        Fehler beim Laden der Alarm-Historie
+                    </td>
+                </tr>
+            `;
+      }
+    }
+  }
+
+// Render alarm history in table
+  function renderAlarmHistory(alarmHistory) {
+    const tbody = document.querySelector('#alarmHistoryTable tbody');
+
+    if (!tbody) return;
+
+    if (alarmHistory.length === 0) {
+      tbody.innerHTML = `
+            <tr>
+                <td colspan="6" style="text-align: center; color: #666;">
+                    Keine Alarm-Historie verfügbar
+                </td>
+            </tr>
+        `;
+      return;
+    }
+
+    tbody.innerHTML = alarmHistory.map(alarm => {
+      return `
+            <tr>
+                <td>${formatDateTime(alarm.erstellt_am)}</td>
+                <td>${alarm.patient_name || 'Unbekannt'}</td>
+                <td>${getAlarmTypeDisplay(alarm.typ)}</td>
+                <td>
+                    <div class="alarm-message" title="${alarm.nachricht}">
+                        ${alarm.nachricht.length > 80 ?
+          alarm.nachricht.substring(0, 80) + '...' :
+          alarm.nachricht}
+                    </div>
+                </td>
+                <td>
+                    <span class="alarm-priority ${alarm.prioritaet}">
+                        ${alarm.prioritaet.toUpperCase()}
+                    </span>
+                </td>
+                <td>
+                    <span class="alarm-status ${alarm.gelesen ? 'read' : 'unread'}">
+                        ${alarm.gelesen ? 'Erledigt' : 'Ungelesen'}
+                    </span>
+                </td>
+            </tr>
+        `;
+    }).join('');
+  }
+
+// Get display text for alarm types
+  function getAlarmTypeDisplay(typ) {
+    const typeMap = {
+      'critical_health_alert': '🚨 Kritische Gesundheit',
+      'new_patient_assignment': '👤 Neue Zuweisung',
+      'patient_transferred': '📍 Patient verlegt',
+      'patient_discharged': '📤 Patient entlassen',
+      'assignment_limit_reached': '⚠️ Limit erreicht'
+    };
+
+    return typeMap[typ] || typ;
+  }
+
+// Toggle alarm history visibility
+  window.toggleAlarmHistory = function() {
+    const container = document.getElementById('alarmHistoryContainer');
+    const button = document.querySelector('.alarm-history-section .btn-secondary');
+
+    if (container.style.display === 'none') {
+      container.style.display = 'block';
+      button.textContent = 'Historie ausblenden';
+      loadAlarmHistory(); // Load data when showing
+    } else {
+      container.style.display = 'none';
+      button.textContent = 'Historie anzeigen';
+    }
+  };
+
+// Add this to your existing loadDashboardData function
+// (Modify the existing function to also load alarm history if it's visible)
+  function loadDashboardData() {
+    // ... your existing code ...
+
+    // If alarm history is visible, refresh it too
+    const historyContainer = document.getElementById('alarmHistoryContainer');
+    if (historyContainer && historyContainer.style.display !== 'none') {
+      loadAlarmHistory();
+    }
+  }
   // Dashboard-Daten vom Server laden und anzeigen
   function loadDashboardData() {
     fetch(`/api/dashboard/${mitarbeiterId}`)
@@ -349,115 +461,3 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// Add this to your existing dashboard.js
-
-// Load alarm history for the current Pflegekraft
-async function loadAlarmHistory() {
-  try {
-    const response = await fetch(`/api/pflegekraft/alarm-history/${mitarbeiterId}`);
-    if (!response.ok) throw new Error('Network response was not ok');
-
-    const data = await response.json();
-
-    if (data.success) {
-      renderAlarmHistory(data.alarmHistory);
-    }
-  } catch (error) {
-    console.error('Alarm history loading error:', error);
-    const tbody = document.querySelector('#alarmHistoryTable tbody');
-    if (tbody) {
-      tbody.innerHTML = `
-                <tr>
-                    <td colspan="6" style="text-align: center; color: #666;">
-                        Fehler beim Laden der Alarm-Historie
-                    </td>
-                </tr>
-            `;
-    }
-  }
-}
-
-// Render alarm history in table
-function renderAlarmHistory(alarmHistory) {
-  const tbody = document.querySelector('#alarmHistoryTable tbody');
-
-  if (!tbody) return;
-
-  if (alarmHistory.length === 0) {
-    tbody.innerHTML = `
-            <tr>
-                <td colspan="6" style="text-align: center; color: #666;">
-                    Keine Alarm-Historie verfügbar
-                </td>
-            </tr>
-        `;
-    return;
-  }
-
-  tbody.innerHTML = alarmHistory.map(alarm => {
-    return `
-            <tr>
-                <td>${formatDateTime(alarm.erstellt_am)}</td>
-                <td>${alarm.patient_name || 'Unbekannt'}</td>
-                <td>${getAlarmTypeDisplay(alarm.typ)}</td>
-                <td>
-                    <div class="alarm-message" title="${alarm.nachricht}">
-                        ${alarm.nachricht.length > 80 ?
-        alarm.nachricht.substring(0, 80) + '...' :
-        alarm.nachricht}
-                    </div>
-                </td>
-                <td>
-                    <span class="alarm-priority ${alarm.prioritaet}">
-                        ${alarm.prioritaet.toUpperCase()}
-                    </span>
-                </td>
-                <td>
-                    <span class="alarm-status ${alarm.gelesen ? 'read' : 'unread'}">
-                        ${alarm.gelesen ? 'Erledigt' : 'Ungelesen'}
-                    </span>
-                </td>
-            </tr>
-        `;
-  }).join('');
-}
-
-// Get display text for alarm types
-function getAlarmTypeDisplay(typ) {
-  const typeMap = {
-    'critical_health_alert': '🚨 Kritische Gesundheit',
-    'new_patient_assignment': '👤 Neue Zuweisung',
-    'patient_transferred': '📍 Patient verlegt',
-    'patient_discharged': '📤 Patient entlassen',
-    'assignment_limit_reached': '⚠️ Limit erreicht'
-  };
-
-  return typeMap[typ] || typ;
-}
-
-// Toggle alarm history visibility
-window.toggleAlarmHistory = function() {
-  const container = document.getElementById('alarmHistoryContainer');
-  const button = document.querySelector('.alarm-history-section .btn-secondary');
-
-  if (container.style.display === 'none') {
-    container.style.display = 'block';
-    button.textContent = 'Historie ausblenden';
-    loadAlarmHistory(); // Load data when showing
-  } else {
-    container.style.display = 'none';
-    button.textContent = 'Historie anzeigen';
-  }
-};
-
-// Add this to your existing loadDashboardData function
-// (Modify the existing function to also load alarm history if it's visible)
-function loadDashboardData() {
-  // ... your existing code ...
-
-  // If alarm history is visible, refresh it too
-  const historyContainer = document.getElementById('alarmHistoryContainer');
-  if (historyContainer && historyContainer.style.display !== 'none') {
-    loadAlarmHistory();
-  }
-}
