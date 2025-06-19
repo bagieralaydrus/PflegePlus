@@ -8,16 +8,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
   const mitarbeiterId = currentUser.id;
 
-
   // Benutzerauthentifizierung prüfen
   if (!mitarbeiterId) {
     alert('Benutzer nicht gefunden. Bitte loggen Sie sich erneut ein.');
     window.location.href = '/';
     return;
   }
-// Add this to your existing dashboard.js
 
-// Load alarm history for the current Pflegekraft
+  // === ALARM HISTORY FUNCTIONS (MOVED INSIDE DOMContentLoaded) ===
+
+  // Load alarm history for the current Pflegekraft
   async function loadAlarmHistory() {
     try {
       const response = await fetch(`/api/pflegekraft/alarm-history/${mitarbeiterId}`);
@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-// Render alarm history in table
+  // Render alarm history in table
   function renderAlarmHistory(alarmHistory) {
     const tbody = document.querySelector('#alarmHistoryTable tbody');
 
@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }).join('');
   }
 
-// Get display text for alarm types
+  // Get display text for alarm types
   function getAlarmTypeDisplay(typ) {
     const typeMap = {
       'critical_health_alert': '🚨 Kritische Gesundheit',
@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return typeMap[typ] || typ;
   }
 
-// Toggle alarm history visibility
+  // Toggle alarm history visibility
   window.toggleAlarmHistory = function() {
     const container = document.getElementById('alarmHistoryContainer');
     const button = document.querySelector('.alarm-history-section .btn-secondary');
@@ -116,17 +116,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-// Add this to your existing loadDashboardData function
-// (Modify the existing function to also load alarm history if it's visible)
-  function loadDashboardData() {
-    // ... your existing code ...
+  // === END ALARM HISTORY FUNCTIONS ===
 
-    // If alarm history is visible, refresh it too
-    const historyContainer = document.getElementById('alarmHistoryContainer');
-    if (historyContainer && historyContainer.style.display !== 'none') {
-      loadAlarmHistory();
-    }
-  }
   // Dashboard-Daten vom Server laden und anzeigen
   function loadDashboardData() {
     fetch(`/api/dashboard/${mitarbeiterId}`)
@@ -182,6 +173,24 @@ document.addEventListener('DOMContentLoaded', () => {
           `;
           tableBody.appendChild(tr);
         });
+
+    // If alarm history is visible, refresh it too
+    const historyContainer = document.getElementById('alarmHistoryContainer');
+    if (historyContainer && historyContainer.style.display !== 'none') {
+      loadAlarmHistory();
+    }
+  }
+
+  // Helper function to format datetime
+  function formatDateTime(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleString('de-DE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   }
 
   // Aufgabe als abgeschlossen markieren
@@ -232,6 +241,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initiales Laden der Dashboard-Daten
   loadDashboardData();
+
+  // Rest of your existing code (particles, critical alerts, etc.)
+  // ... (keep all existing code below this point)
 
   // Animierter Partikelhintergrund
   const canvas = document.getElementById('bg');
@@ -460,4 +472,3 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 5000);
   }
 });
-
