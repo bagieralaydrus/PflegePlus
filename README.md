@@ -8,7 +8,7 @@ A full-stack web application for managing patient care coordination, automated h
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17.5-blue.svg)](https://www.postgresql.org/)
 [![Express](https://img.shields.io/badge/Express-4.21.2-lightgrey.svg)](https://expressjs.com/)
 
-**Project Context:** Website Engineering Course | Grade: 1.3 | Hochschule Niederrhein | June 2025
+**Project Context:** Software Engineering Course | Hochschule Niederrhein | June 2025
 
 ---
 
