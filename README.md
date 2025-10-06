@@ -204,7 +204,7 @@ Interactive testing tool with predefined critical scenarios:
 
 - **Login System**: Role-based authentication (username + birthdate)
 - **Admin Dashboard**: System overview, workload statistics, pending transfer requests
-- **Nurse Dashboard**: Assigned patients (18/24), today's tasks, critical alerts
+- **Nurse Dashboard**: Assigned patients, today's tasks, critical alerts
 - **Patient Dashboard**: Health summary, assigned nurse, transfer request form
 - **Alert System**: Real-time critical health notifications with priority levels
 - **Transfer Management**: Request, review, approve/reject workflow
