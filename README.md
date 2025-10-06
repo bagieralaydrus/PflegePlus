@@ -194,7 +194,7 @@ Interactive testing tool with predefined critical scenarios:
 - **Eren Cicekli** - Full-stack development, API integration
 - **Gian Piero Caruso** - Frontend, UI/UX design, responsive layouts
 
-**Course**: Website Engineering (Grade: 1.3)  
+**Course**: Software Engineering
 **Institution**: Hochschule Niederrhein, Krefeld  
 **Semester**: June 2025
 
